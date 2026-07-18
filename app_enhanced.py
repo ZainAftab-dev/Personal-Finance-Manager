@@ -1,10 +1,14 @@
 """
-AI-Powered Financial Intelligence Platform v2.1
-FIXES in this version:
-  1. Chat quick-prompt buttons work instantly (pending_prompt pattern, no race condition)
-  2. OCR works without Tesseract — uses Claude Vision API as primary, Tesseract as fallback
-  3. Data source redesigned: Upload (NayaPay/real), Sample Data (NayaPay format), AI-Generate
-  4. PDF parsing directly loads into the app — no re-upload step needed
+AI-Powered Financial Intelligence Platform v3.0 — structural redesign.
+Research-backed patterns (Mercury/Ramp/fintech dashboard conventions):
+  - one dominant "north star" hero metric instead of a flat KPI row
+  - asymmetric bento-weighted grids (variable tile size = importance)
+  - custom HTML data tables (sticky header, tabular numerics, status pills)
+    instead of Streamlit's default canvas dataframe grid
+  - inline SVG sparklines / ring gauges, no chart library overhead
+  - grouped, sectioned sidebar navigation instead of one flat list
+  - st.tabs() to break up long vertical stacks into real sub-navigation
+All data loading / ML / AI logic is unchanged from v2.1.
 """
 
 import streamlit as st
@@ -15,8 +19,22 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-import warnings, io, base64, os, re
+import warnings, io, base64, os, re, math, zlib, html as _html
 warnings.filterwarnings('ignore')
+
+def esc(x):
+    """Escape user-controlled text (merchant names, categories from uploaded
+    files) before it's embedded in raw HTML — an uploaded CSV shouldn't be
+    able to inject markup into the page."""
+    return _html.escape(str(x), quote=True)
+
+# ── Load .env before anything reads os.environ (ai_utils_enhanced reads
+#    API keys at import time, so this must run first) ──────────────────
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # ── Original AI utilities ─────────────────────────────────────────
 try:
@@ -37,7 +55,7 @@ try:
         extract_transaction_from_ocr, generate_realistic_dataset,
         detect_recurring_payments_enhanced, compute_financial_health_score,
         generate_smart_alerts, CHATBOT_ENABLED,
-        parse_nayapay_csv, parse_nayapay_pdf_text,   # new specific parsers
+        parse_nayapay_csv, parse_nayapay_pdf_text,
         HF_API_KEY,
     )
     ENHANCED_AI = True
@@ -48,70 +66,342 @@ except ImportError:
 
 AI_ENABLED = ORIGINAL_AI_ENABLED
 
-st.set_page_config(page_title="AI Financial Intelligence Platform", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="FinanceIQ", layout="wide", initial_sidebar_state="expanded")
 
 # ══════════════════════════════════════════════════════════════════
-#  DESIGN SYSTEM
+#  DESIGN TOKENS (python-side, mirrored into CSS below)
 # ══════════════════════════════════════════════════════════════════
-st.markdown("""<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap');
-:root{--bg-base:#0f1117;--bg-surface:#161b27;--bg-card:#1c2336;--bg-card-hover:#202840;--bg-input:#141929;--border:rgba(255,255,255,0.07);--text-primary:#eef0f6;--text-secondary:#8b92a9;--text-muted:#555f7a;--accent-blue:#4a90d9;--accent-teal:#38b2ac;--accent-gold:#c9a84c;--accent-red:#e05c6a;--accent-green:#48bb78;--radius-card:14px;--radius-sm:8px;--shadow-card:0 2px 12px rgba(0,0,0,0.35);--font-sans:'DM Sans',sans-serif;}
-#MainMenu,footer,.stDeployButton{visibility:hidden!important;display:none!important;}
-header[data-testid="stHeader"]{background:transparent!important;border-bottom:none!important;box-shadow:none!important;}
-[data-testid="stSidebarCollapsedControl"]{display:flex!important;visibility:visible!important;opacity:1!important;background:var(--bg-card)!important;border:1px solid var(--border)!important;border-radius:8px!important;z-index:9999!important;}
-html,body,[class*="css"]{font-family:var(--font-sans)!important;color:var(--text-primary);}
-.stApp{background-color:var(--bg-base)!important;}
-.block-container{padding:8px 36px 48px!important;max-width:1300px!important;}
-[data-testid="stSidebar"]{background-color:var(--bg-surface)!important;border-right:1px solid var(--border)!important;padding-top:0!important;}
-.kpi-card{padding:18px 20px;border-radius:var(--radius-card);border:1px solid var(--border);background:var(--bg-card);margin-bottom:4px;}
-.kpi-label{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
-.kpi-value{font-size:24px;font-weight:700;letter-spacing:-.6px;color:var(--text-primary);}
-.kpi-delta{font-size:11px;color:var(--text-secondary);margin-top:5px;}
-.kpi-card.teal{border-top:2px solid var(--accent-teal);}
-.kpi-card.blue{border-top:2px solid var(--accent-blue);}
-.kpi-card.gold{border-top:2px solid var(--accent-gold);}
-.kpi-card.green{border-top:2px solid var(--accent-green);}
-.kpi-card.red{border-top:2px solid var(--accent-red);}
-.section-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);padding:20px 22px;margin-bottom:18px;box-shadow:var(--shadow-card);}
-.section-card-title{font-size:14px;font-weight:600;color:var(--text-primary);}
-.section-card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px;}
-.status-banner{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin:8px 0;border:1px solid;}
-.status-success{background:rgba(72,187,120,.09);border-color:rgba(72,187,120,.25);color:#68d391;}
-.status-warning{background:rgba(201,168,76,.09);border-color:rgba(201,168,76,.25);color:#e9c46a;}
-.status-danger{background:rgba(224,92,106,.09);border-color:rgba(224,92,106,.25);color:#fc8181;}
-.status-info{background:rgba(74,144,217,.09);border-color:rgba(74,144,217,.25);color:#7ec8e3;}
-.page-title{font-size:21px;font-weight:700;color:var(--text-primary);letter-spacing:-.4px;margin-bottom:4px;}
-.page-subtitle{font-size:12.5px;color:var(--text-muted);margin-bottom:22px;}
-.sidebar-section-label{font-size:10px!important;font-weight:600!important;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted)!important;padding:16px 22px 6px;display:block;}
-.sidebar-divider{height:1px;background:var(--border);margin:10px 16px;}
-.chat-user{background:rgba(74,144,217,.13);border:1px solid rgba(74,144,217,.2);border-radius:12px 12px 4px 12px;padding:10px 14px;margin:6px 0 6px 60px;font-size:13.5px;color:var(--text-primary);}
-.chat-ai{background:var(--bg-card);border:1px solid var(--border);border-radius:12px 12px 12px 4px;padding:10px 14px;margin:6px 60px 6px 0;font-size:13.5px;color:var(--text-primary);}
-.chat-label-user{font-size:10px;font-weight:700;color:var(--accent-blue);letter-spacing:.8px;text-align:right;margin:0 2px 2px;}
-.chat-label-ai{font-size:10px;font-weight:700;color:var(--accent-teal);letter-spacing:.8px;margin:0 2px 2px;}
-.dsrc-note{font-size:11px;color:#8b92a9;padding:6px 14px 10px;line-height:1.6;}
+BG, SURFACE1, SURFACE2 = "#0a0b0e", "#121317", "#1a1c22"
+TEXT, TEXT_DIM, TEXT_FAINT = "#edeef2", "#9498a3", "#55585f"
+ACCENT, ACCENT_DIM = "#3d74f5", "#2a4fa8"
+POSITIVE, NEGATIVE, WARNING = "#34c77b", "#f0575a", "#e8b339"
+CATEGORY_PALETTE = ['#3d74f5','#34c77b','#e8b339','#f0575a','#8b7cf6','#3ec6c6','#f2905a','#6b8fd6','#c76fae','#7cae55']
+
+# ══════════════════════════════════════════════════════════════════
+#  ICON SET — inline SVG, stroke-based, no emoji anywhere
+# ══════════════════════════════════════════════════════════════════
+_ICONS = {
+    'grid':            '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
+    'message':         '<path d="M4 5h16v11H8l-4 4V5z"/>',
+    'bar-chart':       '<line x1="5" y1="20" x2="5" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="19" y1="20" x2="19" y2="14"/>',
+    'shield':          '<path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"/>',
+    'repeat':          '<polyline points="4 7 4 4 9 4"/><path d="M4 7a8 8 0 0113-5"/><polyline points="20 17 20 20 15 20"/><path d="M20 17a8 8 0 01-13 5"/>',
+    'pulse':           '<polyline points="3 12 8 12 10 6 14 18 16 12 21 12"/>',
+    'bell':            '<path d="M6 8a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 19a2 2 0 004 0"/>',
+    'wallet':          '<path d="M3 7a2 2 0 012-2h13a1 1 0 011 1v3"/><rect x="3" y="7" width="18" height="12" rx="2"/><circle cx="16.5" cy="13" r="1.3" fill="currentColor" stroke="none"/>',
+    'calendar':        '<rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
+    'receipt':         '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/>',
+    'camera':          '<path d="M4 8h3l2-2h6l2 2h3v11H4V8z"/><circle cx="12" cy="13.5" r="3.2"/>',
+    'download':        '<path d="M12 3v12"/><polyline points="7 11 12 16 17 11"/><path d="M5 19h14"/>',
+    'arrow-up-right':  '<line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/>',
+    'arrow-down-right':'<line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 8 17 17 8 17"/>',
+    'check-circle':    '<circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9"/>',
+    'alert-triangle':  '<path d="M12 4l9 16H3z"/><line x1="12" y1="10" x2="12" y2="14.3"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>',
+    'alert-octagon':   '<circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>',
+    'info':            '<circle cx="12" cy="12" r="9"/><line x1="12" y1="10.5" x2="12" y2="16"/><circle cx="12" cy="7.6" r=".9" fill="currentColor" stroke="none"/>',
+    'inbox':           '<path d="M4 13h4l2 3h4l2-3h4"/><path d="M5.5 6h13l2.5 7v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6l2.5-7z"/>',
+}
+def icon(name, size=16, color="currentColor"):
+    inner = _ICONS.get(name, _ICONS['info'])
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" '
+            f'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" '
+            f'style="vertical-align:-3px;flex-shrink:0">{inner}</svg>')
+
+def sparkline_svg(values, width=140, height=40, color=ACCENT, fill=True):
+    values = [float(v) for v in values if v is not None]
+    if len(values) < 2:
+        return f'<svg width="{width}" height="{height}"></svg>'
+    vmin, vmax = min(values), max(values)
+    rng = (vmax - vmin) or 1
+    n = len(values)
+    pad = 3
+    pts = [(pad + i/(n-1)*(width-2*pad), pad + (height-2*pad) - (v-vmin)/rng*(height-2*pad)) for i, v in enumerate(values)]
+    line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+    area = ""
+    if fill:
+        area_pts = f"{pts[0][0]:.1f},{height} " + line + f" {pts[-1][0]:.1f},{height}"
+        area = f'<polyline points="{area_pts}" fill="{color}" opacity="0.10" stroke="none"/>'
+    return (f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+            f'{area}<polyline points="{line}" fill="none" stroke="{color}" stroke-width="1.8" '
+            f'stroke-linecap="round" stroke-linejoin="round"/></svg>')
+
+def ring_svg(pct, size=88, stroke=8, color=ACCENT, track="rgba(255,255,255,.08)"):
+    pct = max(0, min(100, pct))
+    r = (size - stroke) / 2
+    c = 2 * math.pi * r
+    offset = c * (1 - pct/100)
+    cx = cy = size/2
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{track}" stroke-width="{stroke}"/>'
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{color}" stroke-width="{stroke}" '
+            f'stroke-linecap="round" stroke-dasharray="{c:.2f}" stroke-dashoffset="{offset:.2f}" '
+            f'transform="rotate(-90 {cx} {cy})"/></svg>')
+
+def pill(text, kind="neutral"):
+    return f'<span class="pill pill-{kind}">{text}</span>'
+
+def cat_color(cat):
+    # zlib.crc32 instead of hash() — Python randomizes str hashing per
+    # process (PYTHONHASHSEED), which would make category colors change
+    # on every server restart.
+    return CATEGORY_PALETTE[zlib.crc32(str(cat).encode()) % len(CATEGORY_PALETTE)]
+
+def cat_tag(cat):
+    return f'<span class="cat-tag"><span class="cat-dot" style="background:{cat_color(cat)}"></span>{esc(cat)}</span>'
+
+def amount_cell(amount, ttype):
+    sign = '+' if ttype == 'income' else '−'
+    cls = ' pos' if ttype == 'income' else ''
+    return f'<span class="amt{cls}">{sign} PKR {amount:,.0f}</span>'
+
+def html_table(headers, rows, right_align=None, max_height=None):
+    right_align = right_align or set()
+    thead = "".join(f'<th class="{"num" if i in right_align else ""}">{h}</th>' for i, h in enumerate(headers))
+    body = []
+    for row in rows:
+        tds = "".join(f'<td class="{"num" if i in right_align else ""}">{cell}</td>' for i, cell in enumerate(row))
+        body.append(f'<tr>{tds}</tr>')
+    style = f' style="max-height:{max_height}px"' if max_height else ''
+    return (f'<div class="table-wrap"{style}><table class="ftable"><thead><tr>{thead}</tr></thead>'
+            f'<tbody>{"".join(body)}</tbody></table></div>')
+
+def empty_state(title, message, icon_name="inbox"):
+    st.markdown(f'<div class="empty-state">{icon(icon_name,26,"var(--text-faint)")}'
+                f'<div class="empty-title">{title}</div><div class="empty-msg">{message}</div></div>',
+                unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════
+#  CSS — "Ledger II": charcoal + azure, Manrope / JetBrains Mono
+# ══════════════════════════════════════════════════════════════════
+st.markdown(f"""<style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root{{
+  --bg:{BG}; --surface:#0d0e12; --surface-1:{SURFACE1}; --surface-2:{SURFACE2};
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.16);
+  --text:{TEXT}; --text-dim:{TEXT_DIM}; --text-faint:{TEXT_FAINT};
+  --accent:{ACCENT}; --accent-dim:{ACCENT_DIM}; --accent-soft:rgba(61,116,245,.14);
+  --positive:{POSITIVE}; --positive-soft:rgba(52,199,123,.13);
+  --negative:{NEGATIVE}; --negative-soft:rgba(240,87,90,.13);
+  --warning:{WARNING}; --warning-soft:rgba(232,179,57,.13);
+  --radius:10px; --radius-sm:6px;
+  --font-sans:'Manrope',sans-serif; --font-mono:'JetBrains Mono',monospace;
+}}
+#MainMenu,footer,.stDeployButton{{visibility:hidden!important;display:none!important;}}
+header[data-testid="stHeader"]{{background:transparent!important;border-bottom:none!important;box-shadow:none!important;}}
+[data-testid="stSidebarCollapsedControl"]{{display:flex!important;visibility:visible!important;opacity:1!important;background:var(--surface-1)!important;border:1px solid var(--border)!important;border-radius:var(--radius-sm)!important;z-index:9999!important;}}
+html,body,[class*="css"]{{font-family:var(--font-sans)!important;color:var(--text);}}
+.stApp{{background-color:var(--bg)!important;}}
+.block-container{{padding:14px 40px 56px!important;max-width:1320px!important;}}
+[data-testid="stSidebar"]{{background-color:var(--surface)!important;border-right:1px solid var(--border)!important;padding-top:0!important;width:270px!important;}}
+[data-testid="stSidebar"] .block-container{{padding:0!important;}}
+
+@keyframes fadeUp{{from{{opacity:0;transform:translateY(6px);}}to{{opacity:1;transform:translateY(0);}}}}
+.section-card,.kpi-card,.hero-card,.side-card{{animation:fadeUp .35s ease-out;}}
+@media (prefers-reduced-motion:reduce){{.section-card,.kpi-card,.hero-card,.side-card{{animation:none;}}}}
+
+/* ── Typography rhythm ─────────────────────────────────────────── */
+h1,h2,h3,h4{{font-family:var(--font-sans)!important;letter-spacing:-.01em;}}
+.page-eyebrow{{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;}}
+.page-title{{font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;margin-bottom:2px;}}
+.page-subtitle{{font-size:12.5px;color:var(--text-faint);margin-bottom:22px;}}
+
+/* ── Hero card (north-star metric) ───────────────────────────────── */
+.hero-card{{background:radial-gradient(120% 130% at 100% 0%,rgba(61,116,245,.11),transparent 60%),var(--surface-1);
+  border:1px solid var(--border);border-radius:var(--radius);padding:24px 26px;position:relative;overflow:hidden;height:100%;}}
+.hero-label{{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);}}
+.hero-value{{font-family:var(--font-sans);font-size:44px;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-top:10px;line-height:1;}}
+.hero-delta{{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:12px;color:var(--text-dim);margin-top:10px;padding:3px 9px;border-radius:20px;background:var(--surface-2);}}
+.hero-delta.up{{color:var(--positive);background:var(--positive-soft);}} .hero-delta.down{{color:var(--negative);background:var(--negative-soft);}}
+.hero-spark{{margin-top:14px;line-height:0;}}
+.hero-sub{{font-size:11.5px;color:var(--text-faint);margin-top:8px;}}
+
+/* ── Side card (alerts + health ring) ────────────────────────────── */
+.side-card{{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;height:100%;display:flex;flex-direction:column;gap:16px;}}
+.ring-row{{display:flex;align-items:center;gap:16px;}}
+.ring-wrap{{position:relative;flex-shrink:0;}}
+.ring-num{{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:19px;font-weight:700;color:var(--text);}}
+.ring-meta-label{{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-faint);}}
+.ring-meta-grade{{font-size:15px;font-weight:700;color:var(--text);margin-top:3px;}}
+.side-note{{font-size:12px;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border);padding-top:14px;}}
+
+/* ── KPI strip ────────────────────────────────────────────────── */
+.kpi-card{{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:border-color .15s ease;}}
+.kpi-card:hover{{border-color:var(--border-strong);}}
+.kpi-top{{display:flex;justify-content:space-between;align-items:flex-start;}}
+.kpi-label{{font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);}}
+.kpi-value{{font-family:var(--font-mono);font-size:21px;font-weight:600;letter-spacing:-.01em;color:var(--text);font-variant-numeric:tabular-nums;margin-top:8px;}}
+.kpi-delta{{display:flex;align-items:center;gap:3px;font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:6px;}}
+.kpi-delta.up{{color:var(--positive);}} .kpi-delta.down{{color:var(--negative);}}
+
+/* ── Section cards ─────────────────────────────────────────────── */
+.section-card{{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;}}
+.section-card-title{{font-size:13.5px;font-weight:700;color:var(--text);}}
+.section-card-subtitle{{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-top:2px;}}
+
+/* ── Custom HTML tables ───────────────────────────────────────────── */
+.table-wrap{{border:1px solid var(--border);border-radius:var(--radius);overflow:auto;}}
+.ftable{{width:100%;border-collapse:collapse;font-size:12.5px;}}
+.ftable thead{{position:sticky;top:0;background:var(--surface-2);z-index:1;}}
+.ftable th{{text-align:left;padding:10px 14px;font-family:var(--font-mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-faint);border-bottom:1px solid var(--border);white-space:nowrap;}}
+.ftable td{{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-dim);white-space:nowrap;}}
+.ftable tbody tr:last-child td{{border-bottom:none;}}
+.ftable tbody tr:hover{{background:var(--surface-2);}}
+.ftable td.num,.ftable th.num{{text-align:right;}}
+.amt{{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text);}}
+.amt.pos{{color:var(--positive);}}
+.cat-tag{{display:inline-flex;align-items:center;gap:6px;color:var(--text-dim);}}
+.cat-dot{{width:7px;height:7px;border-radius:50%;flex-shrink:0;}}
+
+/* ── Pills / badges ───────────────────────────────────────────────── */
+.pill{{display:inline-block;padding:2.5px 9px;border-radius:20px;font-size:10.5px;font-family:var(--font-mono);font-weight:500;white-space:nowrap;}}
+.pill-positive{{background:var(--positive-soft);color:var(--positive);}}
+.pill-neutral{{background:var(--surface-2);color:var(--text-dim);}}
+.pill-danger{{background:var(--negative-soft);color:var(--negative);}}
+.pill-warning{{background:var(--warning-soft);color:var(--warning);}}
+.pill-accent{{background:var(--accent-soft);color:var(--accent);}}
+
+/* ── Status banners ─────────────────────────────────────────────── */
+.status-banner{{display:flex;gap:10px;align-items:flex-start;padding:10px 13px;border-radius:var(--radius-sm);font-size:12.5px;line-height:1.55;margin:8px 0;border-left:3px solid;background:var(--surface-1);}}
+.status-banner svg{{margin-top:2px;}}
+.status-success{{border-color:var(--positive);color:#aee3c5;}}
+.status-warning{{border-color:var(--warning);color:#ecd497;}}
+.status-danger{{border-color:var(--negative);color:#f4a7a9;}}
+.status-info{{border-color:var(--accent);color:#a9c1f5;}}
+
+/* ── Empty states ─────────────────────────────────────────────────── */
+.empty-state{{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:44px 24px;color:var(--text-faint);text-align:center;}}
+.empty-title{{font-weight:700;color:var(--text-dim);font-size:13.5px;}}
+.empty-msg{{font-size:12px;max-width:320px;line-height:1.6;}}
+
+/* ── Sidebar brand ────────────────────────────────────────────────── */
+.brand{{padding:22px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}}
+.brand-name{{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.01em;}}
+.brand-name span{{color:var(--accent);}}
+.brand-tag{{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);margin-top:1px;}}
+
+/* ── Sidebar section labels / dividers ───────────────────────────── */
+.sidebar-section-label{{font-family:var(--font-mono);font-size:10px!important;font-weight:600!important;letter-spacing:.13em;text-transform:uppercase;color:var(--text-faint)!important;padding:18px 20px 8px;display:block;}}
+.sidebar-divider{{height:1px;background:var(--border);margin:6px 0;}}
+
+/* ── Radio-as-nav (data source + page nav), grouped with CSS labels ─── */
+[data-testid="stSidebar"] [data-baseweb="radio"] > div:first-child{{display:none!important;}}
+[data-testid="stSidebar"] [role="radiogroup"]{{gap:2px;padding:0 10px;}}
+[data-testid="stSidebar"] [role="radiogroup"] label{{padding:8px 12px!important;border-radius:var(--radius-sm);margin:0!important;border-left:2px solid transparent;transition:border-color .15s ease,background .15s ease;}}
+[data-testid="stSidebar"] [role="radiogroup"] label:hover{{background:var(--surface-1);}}
+[data-testid="stSidebar"] [role="radiogroup"] label p{{font-family:var(--font-sans)!important;font-size:13.5px!important;font-weight:400;color:var(--text-dim)!important;letter-spacing:0;}}
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked){{background:var(--surface-1);border-left-color:var(--accent);}}
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p{{color:var(--text)!important;font-weight:600!important;}}
+[role="radiogroup"][aria-label="nav"]{{margin-top:2px;}}
+[role="radiogroup"][aria-label="nav"] label:nth-of-type(2),
+[role="radiogroup"][aria-label="nav"] label:nth-of-type(3),
+[role="radiogroup"][aria-label="nav"] label:nth-of-type(8),
+[role="radiogroup"][aria-label="nav"] label:nth-of-type(11){{margin-top:10px!important;}}
+
+/* ── Sidebar footer stat block ────────────────────────────────────── */
+.sb-stats{{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);line-height:2.1;padding:10px 20px 2px;}}
+.sb-stats strong{{font-weight:600;}}
+.sb-dot{{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;}}
+.sb-footer{{padding:16px 20px 20px;margin-top:6px;border-top:1px solid var(--border);}}
+.sb-credit{{font-family:var(--font-mono);font-size:10px;color:var(--text-faint);text-align:center;letter-spacing:.02em;}}
+.sb-credit b{{color:var(--text-dim);font-weight:600;}}
+
+/* ── Chat ─────────────────────────────────────────────────────── */
+.chat-label{{font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin:0 2px 3px;}}
+.chat-label.user{{color:var(--text-faint);text-align:right;}}
+.chat-label.ai{{color:var(--accent);}}
+.chat-user{{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius) var(--radius) var(--radius-sm) var(--radius);padding:10px 14px;margin:2px 0 12px 15%;font-size:13.5px;color:var(--text);line-height:1.6;}}
+.chat-ai{{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius) var(--radius) var(--radius) var(--radius-sm);padding:10px 14px;margin:2px 15% 12px 0;font-size:13.5px;color:var(--text);line-height:1.6;}}
+
+/* ── Tabs ─────────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"]{{gap:4px;border-bottom:1px solid var(--border);}}
+.stTabs [data-baseweb="tab"]{{font-family:var(--font-mono)!important;font-size:12px!important;color:var(--text-faint)!important;padding:8px 4px!important;}}
+.stTabs [aria-selected="true"]{{color:var(--text)!important;border-bottom-color:var(--accent)!important;}}
+.stTabs [data-baseweb="tab-highlight"]{{background-color:var(--accent)!important;}}
+
+/* ── Streamlit native widget re-skin ─────────────────────────────── */
+[data-testid="stMetricValue"]{{font-family:var(--font-mono)!important;font-weight:600!important;font-variant-numeric:tabular-nums;}}
+[data-testid="stMetricLabel"]{{font-family:var(--font-mono)!important;font-size:10.5px!important;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint)!important;}}
+[data-testid="stMetricDelta"]{{font-family:var(--font-mono)!important;font-size:11.5px!important;}}
+.stButton>button,.stDownloadButton>button,.stFormSubmitButton>button{{
+  background:var(--surface-2)!important;color:var(--text)!important;border:1px solid var(--border-strong)!important;
+  border-radius:var(--radius-sm)!important;font-family:var(--font-sans)!important;font-weight:600;font-size:12.5px!important;
+  padding:.5em 1em!important;transition:border-color .15s ease,background .15s ease;box-shadow:none!important;
+}}
+.stButton>button:hover,.stDownloadButton>button:hover,.stFormSubmitButton>button:hover{{border-color:var(--accent)!important;color:var(--accent)!important;}}
+.stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;}}
+.stButton>button[kind="primary"]:hover,.stFormSubmitButton>button[kind="primary"]:hover{{background:var(--accent-dim)!important;}}
+[data-testid="stDataFrame"]{{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}}
+.stTextInput input,.stNumberInput input,.stSelectbox [data-baseweb="select"]>div,.stDateInput input,.stTextArea textarea{{
+  font-family:var(--font-mono)!important;background:var(--surface-2)!important;border-color:var(--border-strong)!important;color:var(--text)!important;
+}}
+.stProgress > div > div{{background:var(--accent)!important;}}
+[data-testid="stFileUploaderDropzone"]{{background:var(--surface-1)!important;border:1px dashed var(--border-strong)!important;border-radius:var(--radius)!important;}}
+hr{{border-color:var(--border)!important;}}
 </style>""", unsafe_allow_html=True)
 
-COLOR_PALETTE = ['#4a90d9','#38b2ac','#c9a84c','#e05c6a','#48bb78','#9f7aea','#ed8936','#667eea','#f687b3','#81e6d9']
 PLOTLY_LAYOUT = dict(paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
-    font=dict(family='DM Sans',color='#8b92a9',size=12),margin=dict(l=12,r=12,t=12,b=12),
-    xaxis=dict(gridcolor='rgba(255,255,255,0.05)',zerolinecolor='rgba(255,255,255,0.08)'),
-    yaxis=dict(gridcolor='rgba(255,255,255,0.05)',zerolinecolor='rgba(255,255,255,0.08)'))
+    font=dict(family='JetBrains Mono',color='#9498a3',size=11),margin=dict(l=8,r=8,t=8,b=8),
+    xaxis=dict(gridcolor='rgba(255,255,255,0.045)',zerolinecolor='rgba(255,255,255,0.08)'),
+    yaxis=dict(gridcolor='rgba(255,255,255,0.045)',zerolinecolor='rgba(255,255,255,0.08)'))
 
 # ══════════════════════════════════════════════════════════════════
-#  HELPERS
+#  LAYOUT HELPERS
 # ══════════════════════════════════════════════════════════════════
 def card_open(title,subtitle=""):
     sub = f'<div class="section-card-subtitle">{subtitle}</div>' if subtitle else ""
     st.markdown(f'<div class="section-card"><div class="section-card-title">{title}</div>{sub}</div>',unsafe_allow_html=True)
 def card_close(): pass
-def status(t,m): st.markdown(f'<div class="status-banner status-{t}">{m}</div>',unsafe_allow_html=True)
-def page_header(t,s=""):
+
+_STATUS_ICON = {'success':'check-circle','warning':'alert-triangle','danger':'alert-octagon','info':'info'}
+def status(t,m):
+    st.markdown(f'<div class="status-banner status-{t}">{icon(_STATUS_ICON.get(t,"info"),15)}<span>{m}</span></div>',unsafe_allow_html=True)
+
+def page_header(t,s="",eyebrow=""):
+    if eyebrow: st.markdown(f'<div class="page-eyebrow">{eyebrow}</div>',unsafe_allow_html=True)
     st.markdown(f'<div class="page-title">{t}</div>',unsafe_allow_html=True)
     if s: st.markdown(f'<div class="page-subtitle">{s}</div>',unsafe_allow_html=True)
+
 def spacer(h=12): st.markdown(f'<div style="height:{h}px"></div>',unsafe_allow_html=True)
+
 def plotly_fig(fig,height=300,**kw):
     fig.update_layout(**{**PLOTLY_LAYOUT,**kw})
     st.plotly_chart(fig,use_container_width=True,config={'displayModeBar':False})
+
+def kpi_card(label,value,delta="",trend=None):
+    d = ""
+    if delta:
+        arrow = icon('arrow-up-right' if trend=='up' else 'arrow-down-right',10) if trend in ('up','down') else ""
+        cls = f" {trend}" if trend in ('up','down') else ""
+        d = f'<div class="kpi-delta{cls}">{arrow}<span>{delta}</span></div>'
+    return f'<div class="kpi-card"><div class="kpi-top"><div class="kpi-label">{label}</div></div><div class="kpi-value">{value}</div>{d}</div>'
+
+def kpi_row(cards):
+    cols = st.columns(len(cards))
+    for col,c in zip(cols,cards):
+        label,value = c[0],c[1]
+        delta = c[2] if len(c)>2 else ""
+        trend = c[3] if len(c)>3 else None
+        with col: st.markdown(kpi_card(label,value,delta,trend),unsafe_allow_html=True)
+
+def hero_card(label, value, delta_text, trend, spark_values, subtitle=""):
+    color = POSITIVE if trend=='up' else (NEGATIVE if trend=='down' else ACCENT)
+    spark = sparkline_svg(spark_values, width=260, height=48, color=color) if spark_values else ""
+    arrow = icon('arrow-up-right' if trend=='up' else 'arrow-down-right',12) if trend in ('up','down') else ''
+    cls = trend if trend in ('up','down') else ''
+    sub = f'<div class="hero-sub">{subtitle}</div>' if subtitle else ''
+    return (f'<div class="hero-card"><div class="hero-label">{label}</div>'
+            f'<div class="hero-value">{value}</div>'
+            f'<div class="hero-delta {cls}">{arrow}<span>{delta_text}</span></div>'
+            f'<div class="hero-spark">{spark}</div>{sub}</div>')
+
+def side_card(score, grade, note_html=""):
+    ring = ring_svg(score, size=82, stroke=7, color=ACCENT)
+    note = f'<div class="side-note">{note_html}</div>' if note_html else ''
+    return (f'<div class="side-card"><div class="ring-row">'
+            f'<div class="ring-wrap">{ring}<div class="ring-num">{score}</div></div>'
+            f'<div><div class="ring-meta-label">Health Score</div><div class="ring-meta-grade">Grade {grade}</div></div>'
+            f'</div>{note}</div>')
 
 # ══════════════════════════════════════════════════════════════════
 #  CORE ML
@@ -132,6 +422,7 @@ def auto_categorize(m):
         if any(w in m for w in words): return cat
     return 'Shopping'
 
+@st.cache_data(show_spinner=False)
 def detect_fraud(df):
     if len(df)<10:
         d=df.copy(); d['is_fraud']=False; d['fraud_score']=0.0; return d
@@ -140,6 +431,7 @@ def detect_fraud(df):
     iso=IsolationForest(contamination=0.05,random_state=42); preds=iso.fit_predict(Xs)
     d=df.copy(); d['is_fraud']=preds==-1; d['fraud_score']=iso.decision_function(Xs); return d
 
+@st.cache_data(show_spinner=False)
 def detect_recurring_payments(df):
     if len(df)==0: return pd.DataFrame()
     rec=[]
@@ -178,7 +470,7 @@ def _normalize(df):
             if v.notna().sum()>len(df)*.5: ac=[c]; break
     if not ac: return None
     df['amount']=pd.to_numeric(df[ac[0]],errors='coerce').fillna(0)
-    df=df[df['amount']!=0]; 
+    df=df[df['amount']!=0];
     if df.empty: return None
     mc=[c for c in df.columns if any(k in c for k in ['merchant','description','desc','name','payee','vendor','note','memo','narration','title'])]
     df['merchant_name']=df[mc[0]].astype(str).str.strip() if mc else 'Unknown'
@@ -196,6 +488,7 @@ def _normalize(df):
     df['transaction_id']=[f'TXN{i:06d}' for i in range(len(df))]
     return df
 
+@st.cache_data(show_spinner=False)
 def load_sample_data():
     try:
         df=pd.read_csv('sample_transactions.csv')
@@ -209,6 +502,7 @@ def load_sample_data():
         return df[df['amount']>0].sort_values('date').reset_index(drop=True)
     except Exception: return None
 
+@st.cache_data(show_spinner=False)
 def load_user_data(uploaded_file):
     """Smart loader: NayaPay CSV, standard CSV, Excel."""
     try:
@@ -216,7 +510,6 @@ def load_user_data(uploaded_file):
         raw_bytes = uploaded_file.read()
         if n.endswith('.csv'):
             raw_text = raw_bytes.decode('utf-8', errors='replace')
-            # NayaPay CSV has metadata rows — skip to TIMESTAMP header
             if any(k in raw_text for k in ['TIMESTAMP','NayaPay','Peer to Peer','IBFT']):
                 if ENHANCED_AI:
                     try:
@@ -224,7 +517,6 @@ def load_user_data(uploaded_file):
                         if df is not None and len(df) > 0:
                             return df
                     except Exception: pass
-                # Manual skip-header fallback
                 import io as _io
                 lines = raw_text.split('\n')
                 start = 0
@@ -232,7 +524,6 @@ def load_user_data(uploaded_file):
                     if ('TIMESTAMP' in l or 'TIME' in l) and 'AMOUNT' in l:
                         start = i; break
                 df = pd.read_csv(_io.StringIO('\n'.join(lines[start:])))
-                # Clean NayaPay amount column
                 if 'AMOUNT' in df.columns:
                     df['AMOUNT'] = (df['AMOUNT'].astype(str)
                                    .str.replace(r'Rs\.?\s*','',regex=True)
@@ -242,7 +533,6 @@ def load_user_data(uploaded_file):
                     df['DESCRIPTION'] = df['DESCRIPTION'].astype(str).str.split('|').str[0].str.split('\n').str[0].str.strip()
                 r = _normalize(df)
                 if r is not None: return r
-            # Standard CSV
             import io as _io
             df = pd.read_csv(_io.BytesIO(raw_bytes))
             if df.empty: st.error("File is empty"); return None
@@ -262,6 +552,7 @@ def load_user_data(uploaded_file):
         st.error(f"Error reading file: {e}"); return None
 
 
+@st.cache_data(show_spinner=False)
 def load_pdf_data(file_bytes):
     """Parse NayaPay PDF and generic bank PDF into DataFrame."""
     try:
@@ -278,7 +569,6 @@ def load_pdf_data(file_bytes):
                         if row and any(c for c in row if c):
                             table_records.append(dict(zip(hdrs,[str(c).strip() if c else '' for c in row])))
 
-        # NayaPay PDF: parse text line by line
         if any(k in full_text for k in ['NayaPay','Peer to Peer','IBFT In','Raast','hunainriasat']):
             TYPES = ['Peer to Peer','IBFT In','IBFT Out','Raast In','Raast Out',
                      'Online','Cash In','Cash Out','Request In','Request Out','Bill Payment']
@@ -294,7 +584,6 @@ def load_pdf_data(file_bytes):
                 txn_type='Unknown'; desc=middle.strip()
                 for t in TYPES:
                     if middle.startswith(t): txn_type=t; desc=middle[len(t):].strip(); break
-                # Parse amount properly — keep sign
                 sign = -1 if '-' in amt_str else 1
                 clean = re.sub(r'[Rs\.\s,]','', amt_str).replace('+','').replace('-','').strip()
                 try: amount = float(clean) * sign
@@ -314,7 +603,6 @@ def load_pdf_data(file_bytes):
                 df['transaction_id'] = [f'TXN{i:06d}' for i in range(len(df))]
                 return df.sort_values('date').reset_index(drop=True), None
 
-        # Generic table fallback
         if table_records:
             df = pd.DataFrame(table_records); r = _normalize(df)
             if r is not None and len(r)>0: return r, None
@@ -348,73 +636,61 @@ for k,v in [('chat_history',[]),('pending_prompt',None),('generated_df',None),('
 # ══════════════════════════════════════════════════════════════════
 #  SIDEBAR
 # ══════════════════════════════════════════════════════════════════
-st.sidebar.markdown("""
-<div style="padding:22px 14px 14px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:4px;text-align:center;">
-  <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
-    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="30" height="30" rx="7" fill="#1a2d4a"/>
-      <path d="M7 20V10l7-4 7 4v10l-7 4-7-4z" stroke="#4a90d9" stroke-width="1.5" fill="none"/>
-      <path d="M14 6v16M7 10l7 4 7-4" stroke="#38b2ac" stroke-width="1.2"/>
-      <circle cx="14" cy="14" r="2" fill="#4a90d9"/>
-    </svg>
-    <div>
-      <div style="font-size:24px;font-weight:800;color:#eef0f6;line-height:1.1;">Finance <span style="color:#4a90d9;">IQ</span></div>
-      <div style="font-size:9px;color:#555f7a;letter-spacing:1.4px;text-transform:uppercase;">AI Platform</div>
-    </div>
-  </div>
+LOGOMARK = ('<svg width="26" height="26" viewBox="0 0 26 26" fill="none">'
+            '<rect x="1" y="1" width="24" height="24" rx="7" stroke="var(--accent)" stroke-width="1.6"/>'
+            '<path d="M8 17V9h7M8 13h5" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+st.sidebar.markdown(f"""
+<div class="brand">{LOGOMARK}
+  <div><div class="brand-name">Finance<span>IQ</span></div><div class="brand-tag">Financial Intelligence</div></div>
 </div>""", unsafe_allow_html=True)
 
-st.sidebar.markdown('<span class="sidebar-section-label">📂 Data Source</span>',unsafe_allow_html=True)
+st.sidebar.markdown('<span class="sidebar-section-label">Data Source</span>',unsafe_allow_html=True)
 
-DATA_OPTIONS=[" Upload Bank Statement"," Sample Data"," Generate Demo Data"]
+DATA_OPTIONS=["Upload Bank Statement","Sample Data","Generate Demo Data"]
 data_choice=st.sidebar.radio("dsr",DATA_OPTIONS,label_visibility="collapsed",key="data_source")
 
 df=None
 
 if data_choice==DATA_OPTIONS[0]:
-
     uf=st.sidebar.file_uploader("uf",type=["csv","xlsx","xls","pdf"],label_visibility="collapsed")
     if uf:
         if uf.name.lower().endswith('.pdf'):
             with st.spinner("Parsing PDF…"):
                 df,err=load_pdf_data(uf.read())
             if df is not None:
-                st.sidebar.success(f"✅ PDF: {len(df):,} transactions")
+                st.sidebar.success(f"PDF parsed — {len(df):,} transactions")
                 st.session_state.data_label='live'
             else:
-                st.sidebar.error(f"⚠️ {err}")
-                st.sidebar.info("💡 Tip: Export as CSV from your bank app → Transaction History → Download")
+                st.sidebar.error(f"{err}")
+                st.sidebar.caption("Tip: export as CSV from your bank app → Transaction History → Download")
         else:
             with st.spinner("Loading…"): df=load_user_data(uf)
             if df is not None:
-                st.sidebar.success(f"✅ Loaded {len(df):,} real transactions")
+                st.sidebar.success(f"Loaded {len(df):,} real transactions")
                 st.session_state.data_label='live'
 
 elif data_choice==DATA_OPTIONS[1]:
-
     df=load_sample_data()
     if df is not None:
-        st.sidebar.success(f"✅ Sample data: {len(df):,} transactions")
+        st.sidebar.success(f"Sample data — {len(df):,} transactions")
         st.session_state.data_label='sample'
     else:
         st.sidebar.warning("sample_transactions.csv not found in project folder.")
 
 elif data_choice==DATA_OPTIONS[2]:
-
     ca,cb=st.sidebar.columns(2)
     with ca: gm=st.number_input("Months",1,12,3,key="gm")
     with cb: gi=st.number_input("Salary",20000,500000,80000,step=5000,key="gi")
-    if st.sidebar.button("⚡ Generate",use_container_width=True):
+    if st.sidebar.button("Generate",use_container_width=True,type="primary"):
         if ENHANCED_AI:
             with st.spinner("Generating…"):
                 df=generate_realistic_dataset(months=int(gm),monthly_income=float(gi))
             st.session_state.generated_df=df; st.session_state.data_label='ai'
-            st.sidebar.success(f"✅ Generated {len(df):,} transactions")
+            st.sidebar.success(f"Generated {len(df):,} transactions")
         else:
             st.sidebar.error("ai_utils_enhanced.py not found")
     if st.session_state.generated_df is not None: df=st.session_state.generated_df
 
-# Fallback
 if df is None:
     df=load_sample_data()
     if df is None:
@@ -427,7 +703,6 @@ if df is None:
         df['category']=df['merchant_name'].apply(auto_categorize)
         df['transaction_id']=[f'TXN{i:06d}' for i in range(n)]
 
-# Merge any OCR-captured transactions into main df
 if st.session_state.ocr_transactions:
     ocr_df = pd.DataFrame(st.session_state.ocr_transactions)
     ocr_df['date'] = pd.to_datetime(ocr_df['date'], errors='coerce')
@@ -435,34 +710,33 @@ if st.session_state.ocr_transactions:
     if len(ocr_df) > 0:
         df = pd.concat([df, ocr_df], ignore_index=True).sort_values('date').reset_index(drop=True)
 
-# Computed
 df_fraud=detect_fraud(df)
 recurring_df=(detect_recurring_payments_enhanced(df) if ENHANCED_AI else detect_recurring_payments(df))
 
-# Nav
-st.sidebar.markdown('<div class="sidebar-divider"></div>',unsafe_allow_html=True)
-st.sidebar.markdown('<span class="sidebar-section-label">🧭 Navigation</span>',unsafe_allow_html=True)
-page=st.sidebar.radio("nav",["Dashboard","AI Chat Assistant","Analytics","Fraud Detection",
+# Nav — grouped via CSS label injection (Overview / Assistant / Analyze / Plan / Tools)
+NAV_ITEMS=["Dashboard","AI Chat Assistant","Analytics","Fraud Detection",
     "Recurring Payments","Financial Health","Smart Alerts","Budget Planning",
-    "Monthly Report","Bill Reminders","OCR Receipt Upload","Reports & Export"],
-    label_visibility="collapsed",key="navigation")
+    "Monthly Report","Bill Reminders","OCR Receipt Upload","Reports & Export"]
+
+st.sidebar.markdown('<div class="sidebar-divider"></div>',unsafe_allow_html=True)
+st.sidebar.markdown('<span class="sidebar-section-label">Navigation</span>',unsafe_allow_html=True)
+page=st.sidebar.radio("nav",NAV_ITEMS,label_visibility="collapsed",key="navigation")
 st.sidebar.markdown('<div class="sidebar-divider"></div>',unsafe_allow_html=True)
 
-badge={'live':('🟢 Live Bank Data','color:#48bb78'),'sample':('🔵 Sample Data','color:#4a90d9'),'ai':('🟡 AI-Generated','color:#c9a84c')}
+badge={'live':('Live Bank Data',POSITIVE),'sample':('Sample Data',ACCENT),'ai':('AI-Generated',WARNING)}
 bl,bc=badge.get(st.session_state.data_label,badge['sample'])
 fc=int(df_fraud['is_fraud'].sum())
-st.sidebar.markdown(f"""<div style="padding:8px 16px 4px;">
-  <div style="font-size:11px;color:var(--text-muted);line-height:2.2;">
-    <div>Source: <strong style="{bc}">{bl}</strong></div>
-    <div>Transactions: <strong style="color:var(--text-secondary)">{len(df):,}</strong></div>
-    <div>Fraud alerts: <strong style="color:{'#e05c6a' if fc>0 else 'var(--text-secondary)'}">{fc}</strong></div>
-    <div>Subscriptions: <strong style="color:var(--text-secondary)">{len(recurring_df)}</strong></div>
-    <div>AI Chat: <strong style="color:{'#48bb78' if CHATBOT_ENABLED else '#e9c46a'}">{'🟢 Claude AI' if os.environ.get('ANTHROPIC_API_KEY') else ('🟢 HuggingFace AI' if os.environ.get('HUGGINGFACE_API_KEY') else '🟡 Offline mode')}</strong></div>
-  </div>
+ai_status = 'Claude AI' if os.environ.get('ANTHROPIC_API_KEY') else ('HuggingFace AI' if os.environ.get('HUGGINGFACE_API_KEY') else 'Offline mode')
+ai_color = POSITIVE if CHATBOT_ENABLED else WARNING
+st.sidebar.markdown(f"""<div class="sb-stats">
+    <div><span class="sb-dot" style="background:{bc}"></span>Source&nbsp; <strong style="color:{bc}">{bl}</strong></div>
+    <div>Transactions&nbsp; <strong style="color:var(--text-dim)">{len(df):,}</strong></div>
+    <div>Fraud alerts&nbsp; <strong style="color:{NEGATIVE if fc>0 else 'var(--text-dim)'}">{fc}</strong></div>
+    <div>Subscriptions&nbsp; <strong style="color:var(--text-dim)">{len(recurring_df)}</strong></div>
+    <div>AI chat&nbsp; <strong style="color:{ai_color}">{ai_status}</strong></div>
 </div>
-<div style="padding:12px 18px 18px;margin-top:4px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
-  <div style="font-size:11px;color:var(--text-muted);">Made with <span style="color:#e05c6a;">♥</span> by<br>
-  <span style="background:linear-gradient(90deg,#4a90d9,#38b2ac);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700;font-size:12.5px;">Zain, Hunain &amp; Shaheer</span></div>
+<div class="sb-footer">
+  <div class="sb-credit">Built by <b>Zain</b>, <b>Hunain</b> &amp; <b>Shaheer</b></div>
 </div>""",unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════
@@ -471,27 +745,52 @@ st.sidebar.markdown(f"""<div style="padding:8px 16px 4px;">
 
 # ── DASHBOARD ────────────────────────────────────────────────────
 if page=="Dashboard":
-    page_header("Financial Dashboard","Overview of your financial activity and key metrics")
+    page_header("Financial Dashboard","Overview of activity and key metrics across your account",eyebrow="Overview")
     ti=df[df['transaction_type']=='income']['amount'].sum()
     ts=df[df['transaction_type']=='expense']['amount'].sum()
     bal=ti-ts; fa=df_fraud['is_fraud'].sum(); sr=(bal/ti*100) if ti>0 else 0
 
-    c1,c2,c3,c4,c5=st.columns(5)
-    for col,lbl,val,dlt,clr in [
-        (c1,"Total Income",f"PKR {ti:,.0f}",f"{len(df[df['transaction_type']=='income'])} txns","teal"),
-        (c2,"Total Expenses",f"PKR {ts:,.0f}",f"{len(df[df['transaction_type']=='expense'])} txns","blue"),
-        (c3,"Net Balance",f"PKR {bal:,.0f}","Income − Expenses","gold" if bal>=0 else "red"),
-        (c4,"Savings Rate",f"{sr:.1f}%","Of total income","green"),
-        (c5,"Fraud Alerts",str(int(fa)),f"{fa/len(df)*100:.1f}% flagged","red" if fa>5 else "blue")]:
-        with col: st.markdown(f'<div class="kpi-card {clr}"><div class="kpi-label">{lbl}</div><div class="kpi-value">{val}</div><div class="kpi-delta">{dlt}</div></div>',unsafe_allow_html=True)
+    daily = df.copy()
+    daily['signed'] = np.where(daily['transaction_type']=='income', daily['amount'], -daily['amount'])
+    running = daily.groupby(daily['date'].dt.date)['signed'].sum().cumsum()
+    spark_vals = list(running.tail(30).values) if len(running) >= 2 else []
+
+    health=(compute_financial_health_score(df,ti,ts,recurring_df) if ENHANCED_AI else generate_financial_health_assessment(df,ti,ts))
+    if not ENHANCED_AI:
+        try: hv = int(str(health.get('_health_score','0/100')).split('/')[0])
+        except: hv = 0
+        health.setdefault('total_score', hv)
+        health.setdefault('grade','A' if hv>=85 else 'B' if hv>=70 else 'C' if hv>=55 else 'D' if hv>=40 else 'F')
+    hscore = int(health.get('total_score',0)); hgrade = health.get('grade','?')
+
+    alerts = generate_smart_alerts(df,recurring_df,df_fraud) if ENHANCED_AI else []
+    urgent = [a for a in alerts if a['type'] in ('danger','warning')]
+    alert_html = ""
+    if urgent:
+        a = urgent[0]
+        ic = _STATUS_ICON.get(a['type'],'info')
+        alert_html = f'<div style="display:flex;gap:8px;align-items:flex-start;">{icon(ic,14,"var(--negative)" if a["type"]=="danger" else "var(--warning)")}<div><strong style="color:var(--text)">{a["title"]}</strong><br>{a["message"]}</div></div>'
+    else:
+        alert_html = f'<div style="display:flex;gap:8px;align-items:center;">{icon("check-circle",14,"var(--positive)")}<span>No active alerts — everything looks normal.</span></div>'
+
+    c1,c2=st.columns([1.7,1],gap="medium")
+    with c1:
+        st.markdown(hero_card("Net Balance", f"PKR {bal:,.0f}",
+            f"{sr:.1f}% savings rate", "up" if bal>=0 else "down", spark_vals,
+            "30-day cumulative cash flow"), unsafe_allow_html=True)
+    with c2:
+        st.markdown(side_card(hscore, hgrade, alert_html), unsafe_allow_html=True)
 
     spacer(16)
-    if ENHANCED_AI:
-        alerts=generate_smart_alerts(df,recurring_df,df_fraud)
-        urgent=[a for a in alerts if a['type'] in ('danger','warning')]
-        if urgent: a=urgent[0]; status(a['type'],f"<strong>{a['icon']} {a['title']}:</strong> {a['message']}")
+    kpi_row([
+        ("Total Income",f"PKR {ti:,.0f}",f"{len(df[df['transaction_type']=='income'])} txns"),
+        ("Total Expenses",f"PKR {ts:,.0f}",f"{len(df[df['transaction_type']=='expense'])} txns"),
+        ("Savings Rate",f"{sr:.1f}%","Of total income","up" if sr>=15 else None),
+        ("Fraud Alerts",str(int(fa)),f"{fa/len(df)*100:.1f}% flagged","down" if fa>0 else None),
+    ])
 
-    c1,c2=st.columns([3,2],gap="medium")
+    spacer(16)
+    c1,c2=st.columns([7,5],gap="medium")
     with c1:
         card_open("Monthly Spending Trend","Expense totals per month")
         ex=df[df['transaction_type']=='expense'].copy()
@@ -499,77 +798,77 @@ if page=="Dashboard":
             ex['month']=ex['date'].dt.to_period('M').dt.to_timestamp()
             mo=ex.groupby('month')['amount'].sum().reset_index().sort_values('month')
             fig=go.Figure(); fig.add_trace(go.Scatter(x=mo['month'],y=mo['amount'],mode='lines+markers',fill='tozeroy',
-                fillcolor='rgba(74,144,217,0.09)',line=dict(color='#4a90d9',width=2.5),
-                marker=dict(size=7,color='#4a90d9'),hovertemplate="<b>%{x|%b %Y}</b><br>PKR %{y:,.0f}<extra></extra>"))
-            plotly_fig(fig,height=280,showlegend=False,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.05)'),hovermode='x unified')
+                fillcolor='rgba(61,116,245,0.08)',line=dict(color=ACCENT,width=2),
+                marker=dict(size=6,color=ACCENT),hovertemplate="<b>%{x|%b %Y}</b><br>PKR %{y:,.0f}<extra></extra>"))
+            plotly_fig(fig,height=280,showlegend=False,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.045)'),hovermode='x unified')
         card_close()
     with c2:
         card_open("Spending by Category")
         cd=df[df['transaction_type']=='expense'].groupby('category')['amount'].sum().sort_values(ascending=False)
         if len(cd)>0:
-            fig=go.Figure(data=[go.Pie(labels=cd.index,values=cd.values,hole=0.52,
-                marker=dict(colors=COLOR_PALETTE,line=dict(color='#1c2336',width=2)),
+            fig=go.Figure(data=[go.Pie(labels=cd.index,values=cd.values,hole=0.62,
+                marker=dict(colors=[cat_color(c) for c in cd.index],line=dict(color=SURFACE1,width=2)),
                 hovertemplate="<b>%{label}</b><br>PKR %{value:,.0f}<extra></extra>")])
             plotly_fig(fig,height=280,showlegend=True,legend=dict(orientation='v',x=1.0,y=0.5,font=dict(size=10)))
         card_close()
 
-    card_open("Recent Transactions","Last 20 entries")
-    rc=df.tail(20)[['date','merchant_name','category','amount','transaction_type']].copy()
-    rc['date']=rc['date'].dt.strftime('%Y-%m-%d'); rc.columns=['Date','Merchant','Category','Amount (PKR)','Type']
-    st.dataframe(rc,use_container_width=True,hide_index=True); card_close()
+    card_open("Recent Transactions","Last 20 entries, most recent first")
+    recent = df.tail(20).iloc[::-1]
+    rows = [[r['date'].strftime('%b %d'), esc(r['merchant_name']), cat_tag(r['category']),
+             pill('Income','positive') if r['transaction_type']=='income' else pill('Expense','neutral'),
+             amount_cell(r['amount'], r['transaction_type'])] for _,r in recent.iterrows()]
+    st.markdown(html_table(['Date','Merchant','Category','Type','Amount'], rows, right_align={4}, max_height=420), unsafe_allow_html=True)
+    card_close()
 
+    spacer(8)
     card_open("AI-Powered Insights")
     if AI_ENABLED:
-        st.write("**Financial Health Score**")
-        with st.spinner("Calculating…"):
-            health=(compute_financial_health_score(df,ti,ts,recurring_df) if ENHANCED_AI else generate_financial_health_assessment(df,ti,ts))
-            try: sv=int(str(health.get('_health_score','0/100')).split('/')[0])
-            except: sv=0
-            sv=max(0,min(100,sv)); sl="Strong" if sv>=75 else ("Moderate" if sv>=50 else "Needs Improvement")
-            st.metric("Health Score",f"{sv}/100",delta=sl); st.progress(sv/100)
-            if '_assessment' in health: st.caption(health['_assessment'])
+        t1,t2,t3 = st.tabs(["Health Breakdown","Spending Analysis","Forecast"])
+        with t1:
+            if health.get('sub_scores'):
+                for k,(lbl,mx) in [('savings',('Savings Ratio',30)),('consistency',('Consistency',20)),
+                    ('subscription',('Subscription Load',20)),('risk',('Risk Profile',15)),('income_stability',('Income Stability',15))]:
+                    v=health['sub_scores'].get(k,0)
+                    st.markdown(f"**{lbl}** — {v:.1f}/{mx}")
+                    st.progress(min(1.0,v/mx))
             if '_recommendations' in health: status('info',health['_recommendations'])
-        x1,x2=st.columns(2)
-        with x1:
-            st.write("**Spending Analysis**")
+        with t2:
             with st.spinner("…"): st.write(generate_spending_insights(df))
-        with x2:
-            st.write("**3-Month Forecast**")
+        with t3:
             with st.spinner("…"):
-                fc=predict_monthly_spending(df,months_ahead=3)
-                if 'error' not in fc:
-                    for k,v in fc.get('forecasts',{}).items():
+                fc2=predict_monthly_spending(df,months_ahead=3)
+                if 'error' not in fc2:
+                    for k,v in fc2.get('forecasts',{}).items():
                         if not str(k).startswith('_') and isinstance(v,(int,float,np.integer,np.floating)):
-                            st.write(f"- {k}: PKR {v:,.0f}")
-                    if '_interpretation' in fc: status('info',fc['_interpretation'])
+                            st.write(f"– {k}: PKR {v:,.0f}")
+                    if '_interpretation' in fc2: status('info',fc2['_interpretation'])
                 else: st.info("Need 3+ months data for forecast")
     else:
         status('info','Set <code>ANTHROPIC_API_KEY</code> for AI insights.')
     card_close()
 
-# ── AI CHAT — FIXED ──────────────────────────────────────────────
+# ── AI CHAT ──────────────────────────────────────────────────────
 elif page=="AI Chat Assistant":
-    page_header("AI Financial Assistant","Ask anything about your finances in plain English")
+    page_header("AI Financial Assistant","Ask anything about your finances in plain English",eyebrow="Assistant")
 
     CLAUDE_KEY2 = os.environ.get("ANTHROPIC_API_KEY","")
     HF_KEY2     = os.environ.get("HUGGINGFACE_API_KEY","")
     if CLAUDE_KEY2:
-        status('success','🟢 Claude AI connected — your transaction data is loaded as full context.')
+        status('success','Claude AI connected — your transaction data is loaded as full context.')
     elif HF_KEY2:
-        status('success','🟢 HuggingFace AI connected (free) — Mistral-7B financial assistant active.')
+        status('success','HuggingFace AI connected (free tier) — Mistral-7B financial assistant active.')
     elif ENHANCED_AI:
         status('warning',
-            '🟡 Offline mode — smart rule-based answers.<br>'
-            '<strong>To enable free AI:</strong> Get a free key at '
+            'Offline mode — smart rule-based answers.<br>'
+            '<strong>To enable free AI:</strong> get a free key at '
             '<a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a> '
             'and add <code>HUGGINGFACE_API_KEY=hf_...</code> to your .env file<br>'
-            '<strong>Or for Claude:</strong> Add <code>ANTHROPIC_API_KEY=sk-ant-...</code>')
+            '<strong>Or for Claude:</strong> add <code>ANTHROPIC_API_KEY=sk-ant-...</code>')
     else:
         status('info','Basic mode. Ensure ai_utils_enhanced.py is present.')
 
     spacer(8)
 
-    # ── Process pending prompt FIRST before any UI renders ───────
     if st.session_state.pending_prompt:
         msg=st.session_state.pending_prompt
         st.session_state.pending_prompt=None
@@ -579,8 +878,7 @@ elif page=="AI Chat Assistant":
         st.session_state.chat_history.append({'role':'user','content':msg})
         st.session_state.chat_history.append({'role':'assistant','content':reply})
 
-    # ── Quick prompts (set pending_prompt and rerun) ──────────────
-    card_open("Quick Questions","Click any question to get an instant AI answer")
+    card_open("Quick Questions","Click any question for an instant answer")
     QP=["How much did I spend last month?","Which subscriptions are unnecessary?",
         "What category consumes most money?","How can I save more money?",
         "Which transactions look suspicious?","Predict my next month spending"]
@@ -592,31 +890,29 @@ elif page=="AI Chat Assistant":
                 st.rerun()
     card_close()
 
-    # ── Conversation display ──────────────────────────────────────
-    card_open("Conversation","Your AI financial advisor")
+    card_open("Conversation")
     if not st.session_state.chat_history:
-        st.markdown("""<div class="chat-label-ai">🧠 AI ASSISTANT</div>
-<div class="chat-ai">Hi! I'm your AI financial assistant. I have access to your transaction data.<br><br>
+        st.markdown("""<div class="chat-label ai">Assistant</div>
+<div class="chat-ai">Hi — I'm your AI financial assistant and I have access to your transaction data.<br><br>
 I can help you:<br>
-• Understand where your money is going<br>
-• Find savings and cut unnecessary subscriptions<br>
-• Detect unusual or suspicious spending<br>
-• Forecast next month's expenses<br><br>
-Click a quick question above or type your own below!</div>""",unsafe_allow_html=True)
+– Understand where your money is going<br>
+– Find savings and cut unnecessary subscriptions<br>
+– Detect unusual or suspicious spending<br>
+– Forecast next month's expenses<br><br>
+Click a quick question above or type your own below.</div>""",unsafe_allow_html=True)
     for turn in st.session_state.chat_history:
         if turn['role']=='user':
-            st.markdown(f'<div class="chat-label-user">YOU</div><div class="chat-user">{turn["content"]}</div>',unsafe_allow_html=True)
+            st.markdown(f'<div class="chat-label user">You</div><div class="chat-user">{turn["content"]}</div>',unsafe_allow_html=True)
         else:
-            content=turn['content'].replace('\n','<br>').replace('•','&#8226;')
-            st.markdown(f'<div class="chat-label-ai">🧠 AI</div><div class="chat-ai">{content}</div>',unsafe_allow_html=True)
+            content=turn['content'].replace('\n','<br>').replace('•','&#8211;')
+            st.markdown(f'<div class="chat-label ai">Assistant</div><div class="chat-ai">{content}</div>',unsafe_allow_html=True)
     card_close()
 
-    # ── Form input (clear_on_submit prevents double-send) ─────────
     with st.form("chat_form",clear_on_submit=True):
         ui=st.text_input("Question…",placeholder="e.g. How much did I spend on food this month?",label_visibility="collapsed")
         xc1,xc2=st.columns([5,1])
-        with xc1: sb=st.form_submit_button("💬 Send",use_container_width=True,type="primary")
-        with xc2: cb=st.form_submit_button("🗑️",use_container_width=True)
+        with xc1: sb=st.form_submit_button("Send",use_container_width=True,type="primary")
+        with xc2: cb=st.form_submit_button("Clear",use_container_width=True)
 
     if cb:
         st.session_state.chat_history=[]; st.rerun()
@@ -630,120 +926,162 @@ Click a quick question above or type your own below!</div>""",unsafe_allow_html=
 
 # ── ANALYTICS ────────────────────────────────────────────────────
 elif page=="Analytics":
-    page_header("Detailed Analytics","Granular spending breakdowns")
+    page_header("Detailed Analytics","Granular spending breakdowns",eyebrow="Analysis")
     ex=df[df['transaction_type']=='expense'].copy()
-    if len(ex)==0: status('warning','No expense transactions.'); st.stop()
+    if len(ex)==0:
+        empty_state("No expense data yet","Upload a statement or switch to sample data to see analytics.")
+        st.stop()
 
-    c1,c2=st.columns(2,gap="medium")
-    with c1:
-        card_open("Category Breakdown")
-        ca=ex.groupby('category')['amount'].sum().sort_values(ascending=True)
-        fig=go.Figure(go.Bar(x=ca.values,y=ca.index,orientation='h',marker=dict(color=COLOR_PALETTE[:len(ca)]),
+    t1,t2,t3,t4 = st.tabs(["Overview","Merchants","Categories","Trends"])
+
+    with t1:
+        c1,c2=st.columns(2,gap="medium")
+        with c1:
+            card_open("Category Breakdown")
+            ca=ex.groupby('category')['amount'].sum().sort_values(ascending=True)
+            fig=go.Figure(go.Bar(x=ca.values,y=ca.index,orientation='h',marker=dict(color=[cat_color(c) for c in ca.index]),
+                hovertemplate="<b>%{y}</b><br>PKR %{x:,.0f}<extra></extra>"))
+            plotly_fig(fig,height=300,showlegend=False,xaxis_title="Amount (PKR)"); card_close()
+        with c2:
+            card_open("Spending by Day of Week")
+            ex['dow']=ex['date'].dt.day_name()
+            ds=ex.groupby('dow')['amount'].sum().reindex(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).fillna(0)
+            fig=go.Figure(go.Bar(x=ds.index,y=ds.values,marker=dict(color=ACCENT,opacity=0.85),
+                hovertemplate="<b>%{x}</b><br>PKR %{y:,.0f}<extra></extra>"))
+            plotly_fig(fig,height=300,showlegend=False,yaxis_title="Total (PKR)"); card_close()
+
+    with t2:
+        card_open("Top 15 Merchants")
+        tm=ex.groupby('merchant_name')['amount'].sum().nlargest(15).sort_values()
+        fig=go.Figure(go.Bar(x=tm.values,y=tm.index,orientation='h',marker=dict(color=ACCENT,opacity=0.9),
             hovertemplate="<b>%{y}</b><br>PKR %{x:,.0f}<extra></extra>"))
-        plotly_fig(fig,height=320,showlegend=False,xaxis_title="Amount (PKR)"); card_close()
-    with c2:
-        card_open("Spending by Day of Week")
-        ex['dow']=ex['date'].dt.day_name()
-        ds=ex.groupby('dow')['amount'].sum().reindex(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).fillna(0)
-        fig=go.Figure(go.Bar(x=ds.index,y=ds.values,marker=dict(color='#38b2ac',opacity=0.8),
-            hovertemplate="<b>%{x}</b><br>PKR %{y:,.0f}<extra></extra>"))
-        plotly_fig(fig,height=320,showlegend=False,yaxis_title="Total (PKR)"); card_close()
+        plotly_fig(fig,height=440,showlegend=False,xaxis_title="Total (PKR)"); card_close()
+        card_open("Merchant Detail")
+        md = ex.groupby('merchant_name').agg(total=('amount','sum'),count=('amount','count'),avg=('amount','mean'),
+            category=('category', lambda s: s.mode().iat[0])).sort_values('total',ascending=False).head(20)
+        rows = [[esc(m), cat_tag(r['category']), str(int(r['count'])), f'<span class="amt">PKR {r["avg"]:,.0f}</span>', f'<span class="amt">PKR {r["total"]:,.0f}</span>'] for m,r in md.iterrows()]
+        st.markdown(html_table(['Merchant','Category','Transactions','Avg','Total'], rows, right_align={2,3,4}, max_height=380), unsafe_allow_html=True)
+        card_close()
 
-    card_open("Top 15 Merchants")
-    tm=ex.groupby('merchant_name')['amount'].sum().nlargest(15).sort_values()
-    fig=go.Figure(go.Bar(x=tm.values,y=tm.index,orientation='h',marker=dict(color='#4a90d9',opacity=0.85),
-        hovertemplate="<b>%{y}</b><br>PKR %{x:,.0f}<extra></extra>"))
-    plotly_fig(fig,height=420,showlegend=False,xaxis_title="Total (PKR)"); card_close()
+    with t3:
+        card_open("Category Detail")
+        cat_stats = ex.groupby('category').agg(total=('amount','sum'),count=('amount','count'),avg=('amount','mean')).sort_values('total',ascending=False)
+        rows = [[cat_tag(c), str(int(r['count'])), f'<span class="amt">PKR {r["avg"]:,.0f}</span>', f'<span class="amt">PKR {r["total"]:,.0f}</span>'] for c,r in cat_stats.iterrows()]
+        st.markdown(html_table(['Category','Transactions','Avg','Total'], rows, right_align={1,2,3}), unsafe_allow_html=True)
+        card_close()
 
-    card_open("Income vs Expenses Over Time")
-    dm=df.copy(); dm['month']=dm['date'].dt.to_period('M').dt.to_timestamp()
-    im2=dm[dm['transaction_type']=='income'].groupby('month')['amount'].sum()
-    em2=dm[dm['transaction_type']=='expense'].groupby('month')['amount'].sum()
-    am=sorted(set(im2.index)|set(em2.index))
-    fig=go.Figure()
-    fig.add_trace(go.Bar(name='Income',x=am,y=[im2.get(m,0) for m in am],marker_color='#48bb78'))
-    fig.add_trace(go.Bar(name='Expenses',x=am,y=[em2.get(m,0) for m in am],marker_color='#e05c6a'))
-    fig.update_layout(barmode='group')
-    plotly_fig(fig,height=300,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.05)'),yaxis_title="PKR",hovermode='x unified')
-    card_close()
+    with t4:
+        card_open("Income vs Expenses Over Time")
+        dm=df.copy(); dm['month']=dm['date'].dt.to_period('M').dt.to_timestamp()
+        im2=dm[dm['transaction_type']=='income'].groupby('month')['amount'].sum()
+        em2=dm[dm['transaction_type']=='expense'].groupby('month')['amount'].sum()
+        am=sorted(set(im2.index)|set(em2.index))
+        fig=go.Figure()
+        fig.add_trace(go.Bar(name='Income',x=am,y=[im2.get(m,0) for m in am],marker_color=POSITIVE))
+        fig.add_trace(go.Bar(name='Expenses',x=am,y=[em2.get(m,0) for m in am],marker_color=NEGATIVE))
+        fig.update_layout(barmode='group')
+        plotly_fig(fig,height=320,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.045)'),yaxis_title="PKR",hovermode='x unified')
+        card_close()
 
 # ── FRAUD DETECTION ───────────────────────────────────────────────
 elif page=="Fraud Detection":
-    page_header("Fraud Detection & Security","Isolation Forest anomaly detection")
+    page_header("Fraud Detection & Security","Isolation Forest anomaly detection",eyebrow="Security")
     fc2=df_fraud['is_fraud'].sum(); fp=(fc2/len(df_fraud)*100) if len(df_fraud)>0 else 0
 
-    if AI_ENABLED and st.checkbox("Enable Z-Score Statistical Analysis"):
+    c1,c2=st.columns([1,2.2],gap="medium")
+    with c1:
+        ring = ring_svg(min(100,fp*4), size=104, stroke=9, color=NEGATIVE if fp>10 else (WARNING if fp>5 else POSITIVE))
+        st.markdown(f'''<div class="side-card" style="align-items:center;">
+          <div class="ring-row" style="justify-content:center;">
+            <div class="ring-wrap">{ring}<div class="ring-num">{fp:.1f}%</div></div>
+          </div>
+          <div class="side-note" style="text-align:center;border-top:none;padding-top:0;">Fraud rate across {len(df_fraud):,} transactions</div>
+        </div>''', unsafe_allow_html=True)
+    with c2:
+        kpi_row([
+            ("Suspicious",str(int(fc2)),"","down" if fc2>0 else None),
+            ("Fraud Rate",f"{fp:.1f}%"),
+            ("Safe",str(int(len(df_fraud)-fc2))),
+        ])
+        spacer(8)
+        if fp>10:   status('danger','High fraud rate. Review immediately.')
+        elif fp>5:  status('warning','Moderate fraud rate. Monitor closely.')
+        else:       status('success','Fraud rate within normal range.')
+
+    spacer(10)
+    if AI_ENABLED and st.checkbox("Enable Z-Score statistical analysis"):
         with st.spinner("Analysing…"):
             an=detect_anomalies_ai(df_fraud)
             if an:
                 card_open("Statistical Anomalies (Z-Score > 2.5)")
-                for a in an[:5]:
-                    x1,x2=st.columns([3,2])
-                    with x1: st.write(f"**{a['merchant']}** — Z: {a.get('z_score',0):.2f}")
-                    with x2: st.metric("Amount",f"PKR {a['amount']:,.0f}",delta="High")
+                rows = [[esc(a['merchant']), f'{a.get("z_score",0):.2f}', f'<span class="amt">PKR {a["amount"]:,.0f}</span>'] for a in an[:8]]
+                st.markdown(html_table(['Merchant','Z-Score','Amount'], rows, right_align={1,2}), unsafe_allow_html=True)
                 card_close()
-
-    x1,x2,x3=st.columns(3)
-    with x1: st.metric("Suspicious",int(fc2))
-    with x2: st.metric("Fraud Rate",f"{fp:.1f}%")
-    with x3: st.metric("Safe",int(len(df_fraud)-fc2))
-    spacer(8)
-    if fp>10:   status('danger','High fraud rate. Review immediately.')
-    elif fp>5:  status('warning','Moderate fraud rate. Monitor closely.')
-    else:       status('success','Fraud rate within normal range.')
 
     card_open("Flagged Transactions")
     ft=df_fraud[df_fraud['is_fraud']].copy()
     if len(ft)>0:
-        dc=['date','merchant_name','category','amount']
         if 'fraud_score' in ft.columns:
-            ft['anomaly_%']=((ft['fraud_score'].min()-ft['fraud_score'])/(ft['fraud_score'].min()-ft['fraud_score'].max()+1e-9)*100).round(1)
-            dc.append('anomaly_%')
-        ft['date']=ft['date'].dt.strftime('%Y-%m-%d')
-        dn=['Date','Merchant','Category','Amount (PKR)']+(['Anomaly Score (%)'] if 'anomaly_%' in dc else [])
-        d=ft[dc].copy(); d.columns=dn
-        st.dataframe(d,use_container_width=True,hide_index=True)
+            ft['anomaly']=((ft['fraud_score'].min()-ft['fraud_score'])/(ft['fraud_score'].min()-ft['fraud_score'].max()+1e-9)*100).round(1)
+        else:
+            ft['anomaly']=0.0
+        rows = [[r['date'].strftime('%b %d'), esc(r['merchant_name']), cat_tag(r['category']),
+                 pill('High' if r['anomaly']>66 else 'Medium','danger' if r['anomaly']>66 else 'warning'),
+                 f'<span class="amt">PKR {r["amount"]:,.0f}</span>'] for _,r in ft.iterrows()]
+        st.markdown(html_table(['Date','Merchant','Category','Severity','Amount'], rows, right_align={4}, max_height=360), unsafe_allow_html=True)
         status('warning','Contact your bank for any unrecognized charges.')
-    else: status('success','No suspicious transactions detected.')
+    else:
+        empty_state("No suspicious transactions","Your account currently shows no fraud indicators.")
     card_close()
 
     card_open("Anomaly Scatter Plot")
     fig=go.Figure()
     sd=df_fraud[~df_fraud['is_fraud']]; fd2=df_fraud[df_fraud['is_fraud']]
     fig.add_trace(go.Scatter(x=sd['date'],y=sd['amount'],mode='markers',name='Safe',
-        marker=dict(color='#48bb78',size=5,opacity=0.6),text=sd['merchant_name'],
+        marker=dict(color=POSITIVE,size=5,opacity=0.5),text=sd['merchant_name'],
         hovertemplate="%{text}<br>PKR %{y:,.0f}<extra></extra>"))
     if len(fd2)>0:
         fig.add_trace(go.Scatter(x=fd2['date'],y=fd2['amount'],mode='markers',name='Flagged',
-            marker=dict(color='#e05c6a',size=10,symbol='x',line=dict(width=2,color='#e05c6a')),
-            text=fd2['merchant_name'],hovertemplate="⚠️ %{text}<br>PKR %{y:,.0f}<extra></extra>"))
-    plotly_fig(fig,height=300,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.05)'),yaxis_title="PKR",hovermode='closest')
+            marker=dict(color=NEGATIVE,size=10,symbol='x',line=dict(width=2,color=NEGATIVE)),
+            text=fd2['merchant_name'],hovertemplate="%{text}<br>PKR %{y:,.0f}<extra></extra>"))
+    plotly_fig(fig,height=300,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.045)'),yaxis_title="PKR",hovermode='closest')
     card_close()
 
 # ── RECURRING PAYMENTS ────────────────────────────────────────────
 elif page=="Recurring Payments":
-    page_header("Recurring Payments & Subscriptions","Auto-detected regular charges")
+    page_header("Recurring Payments & Subscriptions","Auto-detected regular charges",eyebrow="Subscriptions")
     if len(recurring_df)>0:
-        x1,x2,x3=st.columns(3)
-        with x1: st.metric("Subscriptions",len(recurring_df))
-        with x2: st.metric("Monthly Cost",f"PKR {recurring_df['avg_amount'].sum():,.0f}")
-        with x3: st.metric("Annual Cost",f"PKR {recurring_df['total_annual'].sum():,.0f}")
-        spacer()
+        c1,c2=st.columns([1.6,1],gap="medium")
+        with c1:
+            st.markdown(hero_card("Annual Subscription Cost", f"PKR {recurring_df['total_annual'].sum():,.0f}",
+                f"PKR {recurring_df['avg_amount'].sum():,.0f} / month", None,
+                sorted(recurring_df['total_annual'].tolist()), f"{len(recurring_df)} active subscriptions detected"), unsafe_allow_html=True)
+        with c2:
+            top3 = recurring_df.nlargest(3,'total_annual')
+            rows_html = "".join(f'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span>{cat_tag(r["merchant_name"])}</span><span class="amt">PKR {r["total_annual"]:,.0f}</span></div>' for _,r in top3.iterrows())
+            st.markdown(f'<div class="side-card"><div class="ring-meta-label">Top 3 By Annual Cost</div><div>{rows_html}</div></div>', unsafe_allow_html=True)
 
+        spacer(16)
         card_open("Your Subscriptions","Sorted by annual cost")
-        sc=['merchant_name','category','count','avg_amount','total_annual']
-        sl=['Merchant','Category','Times Seen','Avg (PKR)','Annual (PKR)']
-        if 'billing_cycle' in recurring_df.columns: sc.insert(3,'billing_cycle'); sl.insert(3,'Cycle')
-        if 'last_charge' in recurring_df.columns:   sc.append('last_charge');    sl.append('Last Charge')
-        rd=recurring_df[sc].copy(); rd.columns=sl
-        st.dataframe(rd,use_container_width=True,hide_index=True)
+        headers = ['Merchant','Category','Cycle','Times Seen','Monthly','Annual']
+        has_cycle = 'billing_cycle' in recurring_df.columns
+        rows = []
+        for _,r in recurring_df.iterrows():
+            rows.append([
+                esc(r['merchant_name']), cat_tag(r['category']),
+                r.get('billing_cycle','Monthly') if has_cycle else 'Monthly',
+                str(int(r['count'])),
+                f'<span class="amt">PKR {r["avg_amount"]:,.0f}</span>',
+                f'<span class="amt">PKR {r["total_annual"]:,.0f}</span>',
+            ])
+        st.markdown(html_table(headers, rows, right_align={3,4,5}), unsafe_allow_html=True)
         status('warning',f'Annual subscription burden: <strong>PKR {recurring_df["total_annual"].sum():,.0f}</strong>')
         card_close()
 
         card_open("Cost Distribution")
-        fig=go.Figure(data=[go.Pie(labels=recurring_df['merchant_name'],values=recurring_df['total_annual'],hole=0.5,
-            marker=dict(colors=COLOR_PALETTE,line=dict(color='#1c2336',width=2)))])
-        plotly_fig(fig,height=240,showlegend=True,legend=dict(orientation='v',x=1.0,y=0.5,font=dict(size=10)))
+        fig=go.Figure(data=[go.Pie(labels=recurring_df['merchant_name'],values=recurring_df['total_annual'],hole=0.6,
+            marker=dict(colors=[cat_color(m) for m in recurring_df['merchant_name']],line=dict(color=SURFACE1,width=2)))])
+        plotly_fig(fig,height=260,showlegend=True,legend=dict(orientation='v',x=1.0,y=0.5,font=dict(size=10)))
         card_close()
 
         if AI_ENABLED:
@@ -755,11 +1093,11 @@ elif page=="Recurring Payments":
                     if '_alternatives' in aa: status('info',f'Alternatives: {aa["_alternatives"]}')
             card_close()
     else:
-        status('info','No recurring payments detected. Upload multiple months of data.')
+        empty_state("No recurring payments detected","Upload multiple months of data so patterns can be identified.")
 
 # ── FINANCIAL HEALTH ──────────────────────────────────────────────
 elif page=="Financial Health":
-    page_header("Financial Health Score","Composite score 0–100 across 5 dimensions")
+    page_header("Financial Health Score","Composite score 0–100 across 5 dimensions",eyebrow="Health")
     ti2=df[df['transaction_type']=='income']['amount'].sum()
     ts2=df[df['transaction_type']=='expense']['amount'].sum()
     health=(compute_financial_health_score(df,ti2,ts2,recurring_df) if ENHANCED_AI
@@ -771,143 +1109,166 @@ elif page=="Financial Health":
         health.setdefault('sub_scores',{})
 
     sc2=int(health.get('total_score',0)); gr=health.get('grade','?')
-    col=('#48bb78' if sc2>=75 else '#c9a84c' if sc2>=50 else '#e05c6a')
+    col=(POSITIVE if sc2>=75 else WARNING if sc2>=50 else NEGATIVE)
 
     x1,x2=st.columns([1,2],gap="large")
     with x1:
-        st.markdown(f"""<div style="text-align:center;padding:28px 16
-        px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);">
-<div style="font-size:76px;font-weight:900;color:{col};line-height:1;">{sc2}</div>
-<div style="font-size:13px;color:var(--text-muted);">out of 100</div>
-<div style="font-size:46px;font-weight:800;color:{col};margin-top:6px;">Grade {gr}</div>
-</div>""",unsafe_allow_html=True)
+        ring = ring_svg(sc2, size=132, stroke=11, color=col)
+        st.markdown(f'''<div style="text-align:center;padding:20px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);">
+          <div style="position:relative;display:inline-block;">{ring}
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div style="font-family:var(--font-mono);font-size:30px;font-weight:700;color:{col};line-height:1;">{sc2}</div>
+              <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-faint);">/ 100</div>
+            </div>
+          </div>
+          <div style="font-size:22px;font-weight:800;color:{col};margin-top:12px;">Grade {gr}</div>
+        </div>''',unsafe_allow_html=True)
     with x2:
-        st.progress(sc2/100); spacer(10)
         if health.get('sub_scores'):
             card_open("Score Breakdown")
-            for k,(lbl,mx) in [('savings',('💰 Savings Ratio',30)),('consistency',('📊 Consistency',20)),
-                ('subscription',('🔄 Subscription Load',20)),('risk',('⚠️ Risk Profile',15)),('income_stability',('💵 Income Stability',15))]:
+            for k,(lbl,mx) in [('savings',('Savings Ratio',30)),('consistency',('Consistency',20)),
+                ('subscription',('Subscription Load',20)),('risk',('Risk Profile',15)),('income_stability',('Income Stability',15))]:
                 v=health['sub_scores'].get(k,0)
                 st.markdown(f"**{lbl}** — {v:.1f}/{mx}")
                 st.progress(min(1.0,v/mx))
             card_close()
+        else:
+            spacer(4)
 
     spacer(14)
     card_open("Recommendations")
-    for r in health.get('recommendations',[]): 
-        if r: status('info',f'💡 {r}')
+    for r in health.get('recommendations',[]):
+        if r: status('info',r)
     sr2=health.get('savings_rate',0)
-    if sr2>=20: status('success',f"✅ Great savings rate of {sr2:.1f}%!")
-    elif sr2>0: status('warning',f"📈 Savings rate {sr2:.1f}% — aim for 20%+.")
+    if sr2>=20: status('success',f"Strong savings rate of {sr2:.1f}%.")
+    elif sr2>0: status('warning',f"Savings rate {sr2:.1f}% — aim for 20%+.")
     card_close()
 
 # ── SMART ALERTS ──────────────────────────────────────────────────
 elif page=="Smart Alerts":
-    page_header("Smart Alerts","Proactive financial notifications")
-    if not ENHANCED_AI: status('warning','Enhanced AI module required.'); st.stop()
+    page_header("Smart Alerts","Proactive financial notifications",eyebrow="Monitoring")
+    if not ENHANCED_AI:
+        status('warning','Enhanced AI module required.'); st.stop()
     alerts=generate_smart_alerts(df,recurring_df,df_fraud)
     da=[a for a in alerts if a['type']=='danger']; wa=[a for a in alerts if a['type']=='warning']; sa=[a for a in alerts if a['type']=='success']
-    x1,x2,x3=st.columns(3)
-    with x1: st.metric("🚨 Critical",len(da))
-    with x2: st.metric("⚠️ Warnings",len(wa))
-    with x3: st.metric("✅ All Clear",len(sa))
+    kpi_row([
+        ("Critical",str(len(da)),"","down" if da else None),
+        ("Warnings",str(len(wa))),
+        ("All Clear",str(len(sa)),"","up" if sa else None),
+    ])
     spacer(10)
     card_open("Active Alerts")
     for a in alerts:
-        act=f' <span style="font-size:11px;opacity:.7;">→ {a["action"]}</span>' if a['action'] else ''
-        status(a['type'],f'<strong>{a["icon"]} {a["title"]}:</strong> {a["message"]}{act}')
+        act=f' <span style="opacity:.65;font-family:var(--font-mono);font-size:11px;">→ {a["action"]}</span>' if a['action'] else ''
+        status(a['type'],f'<strong>{a["title"]}:</strong> {a["message"]}{act}')
     card_close()
 
 # ── BUDGET PLANNING ───────────────────────────────────────────────
 elif page=="Budget Planning":
-    page_header("Budget Planning","Compare actual vs recommended spend")
+    page_header("Budget Planning","Compare actual vs recommended spend",eyebrow="Planning")
     ex3=df[df['transaction_type']=='expense'].copy()
     ti3=df[df['transaction_type']=='income']['amount'].sum(); te3=ex3['amount'].sum()
     if ti3>0:
         ms=max(1,(df['date'].max()-df['date'].min()).days/30)
         ami=ti3/ms; ame=te3/ms; sr3=(ti3-te3)/ti3*100
-        x1,x2,x3=st.columns(3)
-        with x1: st.metric("Avg Monthly Income",f"PKR {ami:,.0f}")
-        with x2: st.metric("Avg Monthly Spend",f"PKR {ame:,.0f}")
-        with x3: st.metric("Savings Rate",f"{sr3:.1f}%")
+        kpi_row([
+            ("Avg Monthly Income",f"PKR {ami:,.0f}"),
+            ("Avg Monthly Spend",f"PKR {ame:,.0f}"),
+            ("Savings Rate",f"{sr3:.1f}%","","up" if sr3>=15 else "down"),
+        ])
         spacer()
         std={'Housing/Rent':0.25,'Utilities':0.08,'Groceries':0.12,'Transport':0.12,'Food & Dining':0.10,'Healthcare':0.06,'Entertainment & Shopping':0.15,'Subscriptions':0.04,'Savings':0.08}
-        card_open("Standard Budget Allocations")
-        bd=[{'Category':c,'Recommended %':f"{p*100:.0f}%",'Monthly (PKR)':f"PKR {ami*p:,.0f}"} for c,p in std.items()]
-        st.dataframe(pd.DataFrame(bd),use_container_width=True,hide_index=True); card_close()
-        card_open("Your Actual Spending")
-        ac3=ex3.groupby('category')['amount'].agg(['sum','count','mean']).round(0)
-        ac3.columns=['Total (PKR)','Txns','Avg (PKR)']; ac3['% of Income']=(ac3['Total (PKR)']/ti3*100).round(1)
-        st.dataframe(ac3.sort_values('Total (PKR)',ascending=False),use_container_width=True); card_close()
-        card_open("Budget Recommendations")
-        rm={'Rent':'Housing/Rent','Utilities':'Utilities','Groceries':'Groceries','Transportation':'Transport',
-            'Food & Dining':'Food & Dining','Healthcare':'Healthcare','Entertainment':'Entertainment & Shopping',
-            'Shopping':'Entertainment & Shopping','Subscriptions':'Subscriptions'}
-        found=False
-        for ac4,rc4 in rm.items():
-            if ac4 not in ac3.index: continue
-            rm2=ami*std.get(rc4,0.1); am2=ac3.loc[ac4,'Total (PKR)']/ms
-            if am2>rm2*1.2: status('warning',f'<strong>{ac4}:</strong> PKR {am2:,.0f}/mo — recommended PKR {rm2:,.0f}/mo'); found=True
-        if not found: status('success','Spending aligns with recommended allocations.')
-        card_close()
-        if AI_ENABLED:
-            card_open("AI Optimisation")
-            if st.button("Generate AI Budget Recommendations"):
-                with st.spinner("…"):
-                    ar=generate_budget_recommendations(df,ti3)
-                    if '_ai_tips' in ar: status('success',ar['_ai_tips'])
-            card_close()
+
+        t1,t2,t3 = st.tabs(["Recommended Budget","Actual Spending","Recommendations"])
+        with t1:
+            rows = [[c, f"{p*100:.0f}%", f'<span class="amt">PKR {ami*p:,.0f}</span>'] for c,p in std.items()]
+            st.markdown(html_table(['Category','Recommended %','Monthly'], rows, right_align={1,2}), unsafe_allow_html=True)
+        with t2:
+            ac3=ex3.groupby('category')['amount'].agg(['sum','count','mean']).round(0)
+            ac3.columns=['Total','Txns','Avg']; ac3['pct']=(ac3['Total']/ti3*100).round(1)
+            rows = [[cat_tag(c), str(int(r['Txns'])), f'<span class="amt">PKR {r["Avg"]:,.0f}</span>', f'<span class="amt">PKR {r["Total"]:,.0f}</span>', f'{r["pct"]:.1f}%'] for c,r in ac3.sort_values('Total',ascending=False).iterrows()]
+            st.markdown(html_table(['Category','Txns','Avg','Total','% of Income'], rows, right_align={1,2,3,4}), unsafe_allow_html=True)
+        with t3:
+            rm={'Rent':'Housing/Rent','Utilities':'Utilities','Groceries':'Groceries','Transportation':'Transport',
+                'Food & Dining':'Food & Dining','Healthcare':'Healthcare','Entertainment':'Entertainment & Shopping',
+                'Shopping':'Entertainment & Shopping','Subscriptions':'Subscriptions'}
+            ac3b=ex3.groupby('category')['amount'].sum()
+            found=False
+            for ac4,rc4 in rm.items():
+                if ac4 not in ac3b.index: continue
+                rm2=ami*std.get(rc4,0.1); am2=ac3b.loc[ac4]/ms
+                if am2>rm2*1.2: status('warning',f'<strong>{ac4}:</strong> PKR {am2:,.0f}/mo — recommended PKR {rm2:,.0f}/mo'); found=True
+            if not found: status('success','Spending aligns with recommended allocations.')
+            if AI_ENABLED:
+                spacer(6)
+                if st.button("Generate AI Budget Recommendations"):
+                    with st.spinner("…"):
+                        ar=generate_budget_recommendations(df,ti3)
+                        if '_ai_tips' in ar: status('success',ar['_ai_tips'])
     else:
         status('warning','No income transactions found.')
 
 # ── MONTHLY REPORT ────────────────────────────────────────────────
 elif page=="Monthly Report":
-    page_header("Monthly Financial Report","Detailed breakdown by month")
+    page_header("Monthly Financial Report","Detailed breakdown by month",eyebrow="Reports")
     months=sorted(df['date'].dt.to_period('M').unique(),reverse=True)
     sm=st.selectbox("Month",months,key="msel")
     mdf=df[df['date'].dt.to_period('M')==sm]
     mi=mdf[mdf['transaction_type']=='income']['amount'].sum(); me=mdf[mdf['transaction_type']=='expense']['amount'].sum()
     mb=mi-me; msr=(mb/mi*100) if mi>0 else 0
-    x1,x2,x3,x4=st.columns(4)
-    with x1: st.metric("Income",f"PKR {mi:,.0f}")
-    with x2: st.metric("Expenses",f"PKR {me:,.0f}")
-    with x3: st.metric("Balance",f"PKR {mb:,.0f}")
-    with x4: st.metric("Savings Rate",f"{msr:.1f}%")
+    kpi_row([
+        ("Income",f"PKR {mi:,.0f}"),
+        ("Expenses",f"PKR {me:,.0f}"),
+        ("Balance",f"PKR {mb:,.0f}","","up" if mb>=0 else "down"),
+        ("Savings Rate",f"{msr:.1f}%"),
+    ])
     spacer()
     x1,x2=st.columns(2,gap="medium")
     with x1:
         card_open(f"Categories — {sm}")
         cm=mdf[mdf['transaction_type']=='expense'].groupby('category')['amount'].sum().sort_values(ascending=False)
         if len(cm)>0:
-            fig=go.Figure(go.Bar(x=cm.index,y=cm.values,marker=dict(color=COLOR_PALETTE[:len(cm)]),hovertemplate="<b>%{x}</b><br>PKR %{y:,.0f}<extra></extra>"))
+            fig=go.Figure(go.Bar(x=cm.index,y=cm.values,marker=dict(color=[cat_color(c) for c in cm.index]),hovertemplate="<b>%{x}</b><br>PKR %{y:,.0f}<extra></extra>"))
             plotly_fig(fig,height=240,showlegend=False,yaxis_title="PKR")
         card_close()
     with x2:
         card_open(f"Daily Spending — {sm}")
         dl=mdf[mdf['transaction_type']=='expense'].groupby(mdf['date'].dt.day)['amount'].sum()
         if len(dl)>0:
-            fig=go.Figure(go.Scatter(x=dl.index,y=dl.values,mode='lines+markers',fill='tozeroy',fillcolor='rgba(56,178,172,.09)',line=dict(color='#38b2ac',width=2),marker=dict(size=5),hovertemplate="Day %{x}<br>PKR %{y:,.0f}<extra></extra>"))
+            fig=go.Figure(go.Scatter(x=dl.index,y=dl.values,mode='lines+markers',fill='tozeroy',fillcolor='rgba(61,116,245,.08)',line=dict(color=ACCENT,width=2),marker=dict(size=5),hovertemplate="Day %{x}<br>PKR %{y:,.0f}<extra></extra>"))
             plotly_fig(fig,height=240,showlegend=False,xaxis_title="Day",yaxis_title="PKR")
         card_close()
     card_open("Transactions")
-    td=mdf[['date','merchant_name','category','amount','transaction_type']].copy()
-    td['date']=td['date'].dt.strftime('%Y-%m-%d'); td.columns=['Date','Merchant','Category','Amount (PKR)','Type']
-    st.dataframe(td,use_container_width=True,hide_index=True); card_close()
+    td = mdf.sort_values('date',ascending=False)
+    rows = [[r['date'].strftime('%b %d'), esc(r['merchant_name']), cat_tag(r['category']),
+             pill('Income','positive') if r['transaction_type']=='income' else pill('Expense','neutral'),
+             amount_cell(r['amount'], r['transaction_type'])] for _,r in td.iterrows()]
+    st.markdown(html_table(['Date','Merchant','Category','Type','Amount'], rows, right_align={4}, max_height=420), unsafe_allow_html=True)
+    card_close()
 
 # ── BILL REMINDERS ────────────────────────────────────────────────
 elif page=="Bill Reminders":
-    page_header("Bill Reminders","Upcoming bills from recurring payment detection")
+    page_header("Bill Reminders","Upcoming bills from recurring payment detection",eyebrow="Payments")
     if len(recurring_df)>0:
         today=pd.Timestamp.now()
+        kpi_row([
+            ("Monthly Total",f"PKR {recurring_df['avg_amount'].sum():,.0f}"),
+            ("Annual Total",f"PKR {recurring_df['total_annual'].sum():,.0f}"),
+            ("Bills",str(len(recurring_df))),
+        ])
+        spacer(10)
         card_open("Upcoming Bills (Estimated)")
-        bd=[{'Merchant':r['merchant_name'],'Category':r['category'],'Amount (PKR)':r['avg_amount'],
-             'Est. Next Due':(today+timedelta(days=30)).strftime('%Y-%m-%d'),'Annual (PKR)':r['total_annual']}
-            for _,r in recurring_df.iterrows()]
-        st.dataframe(pd.DataFrame(bd),use_container_width=True,hide_index=True); card_close()
-        x1,x2,x3=st.columns(3)
-        with x1: st.metric("Monthly Total",f"PKR {recurring_df['avg_amount'].sum():,.0f}")
-        with x2: st.metric("Annual Total",f"PKR {recurring_df['total_annual'].sum():,.0f}")
-        with x3: st.metric("Bills",len(recurring_df))
+        bills = recurring_df.sort_values('avg_amount',ascending=False)
+        rows = []
+        for _,r in bills.iterrows():
+            due = (today+timedelta(days=30))
+            days_until = (due-today).days
+            st_kind = 'danger' if days_until<=0 else ('warning' if days_until<=3 else 'positive')
+            st_lbl = 'Due Now' if days_until<=0 else ('Due Soon' if days_until<=3 else 'Upcoming')
+            rows.append([cat_tag(r['merchant_name']), esc(r['category']), f'<span class="amt">PKR {r["avg_amount"]:,.0f}</span>',
+                         due.strftime('%b %d, %Y'), pill(st_lbl, st_kind)])
+        st.markdown(html_table(['Bill','Category','Amount','Est. Due','Status'], rows, right_align={2}), unsafe_allow_html=True)
+        card_close()
         if AI_ENABLED:
             card_open("AI Bill Tips")
             if st.button("Get AI Bill Optimisation"):
@@ -917,18 +1278,16 @@ elif page=="Bill Reminders":
                     if '_urgency' in r: status('warning',r['_urgency'])
             card_close()
     else:
-        status('info','No recurring bills detected. Upload multiple months of data.')
+        empty_state("No recurring bills detected","Upload multiple months of data to see bills.")
 
-# ── OCR RECEIPT UPLOAD — FIXED ────────────────────────────────────
+# ── OCR RECEIPT UPLOAD ────────────────────────────────────────────
 elif page=="OCR Receipt Upload":
-    page_header("OCR Receipt / Screenshot Upload","Extract transaction details from any receipt photo")
+    page_header("OCR Receipt / Screenshot Upload","Extract transaction details from any receipt photo",eyebrow="Capture")
 
     CLAUDE_KEY = os.environ.get("ANTHROPIC_API_KEY","")
 
-    # Show status based on available OCR method
     try:
         import pytesseract
-        # Auto-detect Tesseract on Windows
         import os as _os
         for tp in [r'C:\Program Files\Tesseract-OCR\tesseract.exe',
                    r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe']:
@@ -939,14 +1298,14 @@ elif page=="OCR Receipt Upload":
         TESS_OK = False
 
     if CLAUDE_KEY:
-        status('success','🧠 Claude Vision AI active — reads any receipt, screenshot or slip with high accuracy.')
+        status('success','Claude Vision AI active — reads any receipt, screenshot or slip with high accuracy.')
     elif TESS_OK:
-        status('success','✅ Tesseract OCR is installed and ready. Upload a receipt image below.')
+        status('success','Tesseract OCR is installed and ready. Upload a receipt image below.')
     else:
         status('warning',
-            '⚠️ No OCR engine detected. <strong>Two options:</strong><br>'
-            '&nbsp;1. <strong>Claude Vision (recommended, no install):</strong> Add <code>ANTHROPIC_API_KEY=sk-ant-...</code> to your .env file<br>'
-            '&nbsp;2. <strong>Tesseract (local, free):</strong> Run in terminal as Administrator: '
+            'No OCR engine detected. <strong>Two options:</strong><br>'
+            '1. <strong>Claude Vision (recommended, no install):</strong> add <code>ANTHROPIC_API_KEY=sk-ant-...</code> to your .env file<br>'
+            '2. <strong>Tesseract (local, free):</strong> run in terminal as Administrator: '
             '<code>winget install UB-Mannheim.TesseractOCR</code> → restart VS Code → <code>pip install pytesseract Pillow</code>')
 
     spacer(8)
@@ -956,8 +1315,6 @@ elif page=="OCR Receipt Upload":
     card_close()
 
     def run_ocr(img_bytes, mime):
-        """Try Claude Vision first, then Tesseract, return (text, method_used)."""
-        # 1. Claude Vision API
         if CLAUDE_KEY:
             try:
                 import anthropic
@@ -979,9 +1336,8 @@ elif page=="OCR Receipt Upload":
                     ]}])
                 return resp.content[0].text, "Claude Vision AI"
             except Exception as e:
-                pass  # Fall through to Tesseract
+                pass
 
-        # 2. Tesseract OCR
         try:
             from PIL import Image
             import pytesseract, io as _io
@@ -991,7 +1347,6 @@ elif page=="OCR Receipt Upload":
                 import os as _os
                 if _os.path.exists(tp): pytesseract.pytesseract.tesseract_cmd = tp; break
             img = Image.open(_io.BytesIO(img_bytes))
-            # Upscale small images for better accuracy
             w, h = img.size
             if w < 800: img = img.resize((w*2, h*2), Image.LANCZOS)
             text = pytesseract.image_to_string(img, config='--psm 6')
@@ -1002,11 +1357,9 @@ elif page=="OCR Receipt Upload":
             return f"OCR_ERROR: {e}", "none"
 
     def parse_ocr_result(text, method):
-        """Parse extracted text into transaction fields."""
         r = {'merchant':None,'amount':None,'date':None,'txn_id':None,'from':None,'to':None,'type':None}
 
         if method == "Claude Vision AI":
-            # Structured output from Claude
             for line in text.split('\n'):
                 line = line.strip()
                 for key in ['MERCHANT','AMOUNT','DATE','TXN_ID','FROM','TO','TYPE']:
@@ -1019,7 +1372,6 @@ elif page=="OCR Receipt Upload":
                                 except: pass
                             else: r[k2] = v
         else:
-            # Tesseract raw text — smart extraction
             lines = text.split('\n')
             amt_pats = [
                 re.compile(r'Rs\.?\s*([\d,]+\.?\d{0,2})', re.I),
@@ -1052,7 +1404,6 @@ elif page=="OCR Receipt Upload":
                     fm = from_pat.search(line_s)
                     if fm: r['from'] = fm.group(1).strip()[:50]
 
-            # Detect service from text
             for svc in ['JazzCash','NayaPay','Easypaisa','HBL','Meezan','Foodpanda','Careem','Daraz','Netflix']:
                 if svc.lower() in text.lower():
                     r['merchant'] = svc; break
@@ -1068,13 +1419,13 @@ elif page=="OCR Receipt Upload":
             st.image(raw, caption="Uploaded image", use_column_width=True)
 
         with c2:
-            with st.spinner("🔍 Extracting transaction data…"):
+            with st.spinner("Extracting transaction data…"):
                 txt, method_used = run_ocr(raw, mime)
 
             if txt in ("TESSERACT_NOT_INSTALLED",) or txt.startswith("OCR_ERROR"):
                 status('danger',
                     f'<strong>OCR not available.</strong> {txt}<br><br>'
-                    'Fix: Run as Administrator: <code>winget install UB-Mannheim.TesseractOCR</code><br>'
+                    'Fix: run as Administrator: <code>winget install UB-Mannheim.TesseractOCR</code><br>'
                     'Or set ANTHROPIC_API_KEY to use Claude Vision (no install needed).')
             else:
                 status('info', f'Extracted using: <strong>{method_used}</strong>')
@@ -1084,7 +1435,7 @@ elif page=="OCR Receipt Upload":
 
                 ext = parse_ocr_result(txt, method_used)
                 if ext.get('amount'):
-                    card_open("✅ Transaction Detected")
+                    card_open("Transaction Detected")
                     xa, xb = st.columns(2)
                     with xa:
                         st.metric("Amount",   f"PKR {ext['amount']:,.0f}")
@@ -1096,7 +1447,6 @@ elif page=="OCR Receipt Upload":
                     if ext.get('from'):   st.caption(f"From: {ext['from']}")
                     if ext.get('to'):     st.caption(f"To: {ext['to']}")
 
-                    # ── Edit fields before adding ───────────────────
                     st.write("**Confirm before adding:**")
                     col_e1, col_e2, col_e3 = st.columns(3)
                     with col_e1:
@@ -1109,7 +1459,7 @@ elif page=="OCR Receipt Upload":
                     confirm_date = st.date_input("Date", value=datetime.now().date(), key="ocr_date")
                     confirm_cat  = st.selectbox("Category", ["Financial","Food & Dining","Utilities","Transportation","Shopping","Entertainment","Healthcare","Other"], key="ocr_cat")
 
-                    if st.button("➕ Add to My Finances", use_container_width=True, type="primary"):
+                    if st.button("Add to My Finances", use_container_width=True, type="primary"):
                         new_row = {
                             'date':             pd.Timestamp(confirm_date),
                             'merchant_name':    confirm_merchant,
@@ -1120,31 +1470,30 @@ elif page=="OCR Receipt Upload":
                             'transaction_id':   f'OCR{len(st.session_state.ocr_transactions):04d}',
                         }
                         st.session_state.ocr_transactions.append(new_row)
-                        status('success', f'✅ Added PKR {confirm_amount:,.0f} from {confirm_merchant} to your financial data! Go to Dashboard to see it.')
+                        status('success', f'Added PKR {confirm_amount:,.0f} from {confirm_merchant}. Go to Dashboard to see it reflected.')
 
                     if st.session_state.ocr_transactions:
-                        st.caption(f"📊 {len(st.session_state.ocr_transactions)} OCR transaction(s) added to your finances this session.")
-                        if st.button("🗑️ Clear OCR Transactions", key="clear_ocr"):
+                        st.caption(f"{len(st.session_state.ocr_transactions)} OCR transaction(s) added to your finances this session.")
+                        if st.button("Clear OCR Transactions", key="clear_ocr"):
                             st.session_state.ocr_transactions = []
                             st.rerun()
                     card_close()
                 else:
                     status('warning',
                         'Amount not detected. Tips:<br>'
-                        '• Ensure the image is sharp and well-lit<br>'
-                        '• Try a screenshot instead of a photo<br>'
-                        '• Use Claude Vision (ANTHROPIC_API_KEY) for best results')
+                        '– Ensure the image is sharp and well-lit<br>'
+                        '– Try a screenshot instead of a photo<br>'
+                        '– Use Claude Vision (ANTHROPIC_API_KEY) for best results')
 
 
 elif page=="Reports & Export":
-    page_header("Reports & Export","Download financial reports")
-    card_open("Configuration")
-    xa,xb=st.columns(2)
-    with xa: st.write("**Report Type**"); rt=st.selectbox("rt",["Monthly Summary","Annual Summary","Category Analysis","Subscription Audit"],label_visibility="collapsed")
-    with xb: st.write("**Format**"); ef=st.selectbox("ef",["Excel (XLSX)","CSV"],label_visibility="collapsed")
-    card_close(); card_open(rt)
+    page_header("Reports & Export","Download financial reports",eyebrow="Export")
 
-    if rt=="Monthly Summary":
+    t1,t2,t3,t4 = st.tabs(["Monthly Summary","Annual Summary","Category Analysis","Subscription Audit"])
+    ef = st.radio("Format", ["Excel (XLSX)","CSV"], horizontal=True, key="export_fmt")
+    spacer(6)
+
+    with t1:
         months=sorted(df['date'].dt.to_period('M').unique(),reverse=True)
         sel=st.multiselect("Months",months,default=[months[0]] if months else [])
         if sel:
@@ -1156,40 +1505,45 @@ elif page=="Reports & Export":
                 rows.append({'Month':str(m),'Income':f"PKR {inc:,.0f}",'Expenses':f"PKR {exp:,.0f}",'Balance':f"PKR {inc-exp:,.0f}",'Transactions':len(mdf)})
             rdf=pd.DataFrame(rows); st.dataframe(rdf,use_container_width=True,hide_index=True)
             if ef=="Excel (XLSX)":
-                buf=pd.ExcelWriter('ms.xlsx',engine='openpyxl'); rdf.to_excel(buf,index=False); buf.close()
-                with open('ms.xlsx','rb') as f: st.download_button("Download Excel",f.read(),f"monthly_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                _buf=io.BytesIO()
+                with pd.ExcelWriter(_buf,engine='openpyxl') as _w: rdf.to_excel(_w,index=False)
+                st.download_button("Download Excel",_buf.getvalue(),f"monthly_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else: st.download_button("Download CSV",rdf.to_csv(index=False),f"monthly_{datetime.now().strftime('%Y%m%d')}.csv","text/csv")
 
-    elif rt=="Annual Summary":
+    with t2:
         ai2=df[df['transaction_type']=='income']['amount'].sum(); ae2=df[df['transaction_type']=='expense']['amount'].sum()
         sv2=ai2-ae2; sr4=(sv2/ai2*100) if ai2>0 else 0; pd2=(df['date'].max()-df['date'].min()).days; pm=max(1,pd2/30)
         sdf=pd.DataFrame({'Metric':['Total Income','Total Expenses','Net Savings','Savings Rate','Avg Monthly Income','Avg Monthly Expenses','Days Tracked'],
             'Amount':[f"PKR {ai2:,.0f}",f"PKR {ae2:,.0f}",f"PKR {sv2:,.0f}",f"{sr4:.1f}%",f"PKR {ai2/pm:,.0f}",f"PKR {ae2/pm:,.0f}",str(pd2)]})
         st.dataframe(sdf,use_container_width=True,hide_index=True)
         if ef=="Excel (XLSX)":
-            buf=pd.ExcelWriter('as.xlsx',engine='openpyxl'); sdf.to_excel(buf,sheet_name='Annual',index=False)
-            cs=df[df['transaction_type']=='expense'].groupby('category')['amount'].agg(['sum','count','mean']).reset_index()
-            cs.columns=['Category','Total','Count','Avg']; cs.to_excel(buf,sheet_name='By Category',index=False); buf.close()
-            with open('as.xlsx','rb') as f: st.download_button("Download Excel",f.read(),f"annual_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            _buf=io.BytesIO()
+            with pd.ExcelWriter(_buf,engine='openpyxl') as _w:
+                sdf.to_excel(_w,sheet_name='Annual',index=False)
+                cs=df[df['transaction_type']=='expense'].groupby('category')['amount'].agg(['sum','count','mean']).reset_index()
+                cs.columns=['Category','Total','Count','Avg']; cs.to_excel(_w,sheet_name='By Category',index=False)
+            st.download_button("Download Excel",_buf.getvalue(),f"annual_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else: st.download_button("Download CSV",sdf.to_csv(index=False),f"annual_{datetime.now().strftime('%Y%m%d')}.csv","text/csv")
 
-    elif rt=="Category Analysis":
+    with t3:
         ca5=df[df['transaction_type']=='expense'].groupby('category').agg({'amount':['sum','count','mean','min','max']}).round(0)
         ca5.columns=['Total (PKR)','Count','Avg (PKR)','Min (PKR)','Max (PKR)']; ca5=ca5.sort_values('Total (PKR)',ascending=False)
         st.dataframe(ca5,use_container_width=True)
         if ef=="Excel (XLSX)":
-            buf=pd.ExcelWriter('ca.xlsx',engine='openpyxl'); ca5.to_excel(buf); buf.close()
-            with open('ca.xlsx','rb') as f: st.download_button("Download Excel",f.read(),f"categories_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            _buf=io.BytesIO()
+            with pd.ExcelWriter(_buf,engine='openpyxl') as _w: ca5.to_excel(_w)
+            st.download_button("Download Excel",_buf.getvalue(),f"categories_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else: st.download_button("Download CSV",ca5.to_csv(),f"categories_{datetime.now().strftime('%Y%m%d')}.csv","text/csv")
 
-    elif rt=="Subscription Audit":
+    with t4:
         if len(recurring_df)>0:
             au=recurring_df.copy().sort_values('total_annual',ascending=False)
-            xa,xb,xc=st.columns(3)
-            with xa: st.metric("Subscriptions",len(au))
-            with xb: st.metric("Annual PKR",f"PKR {au['total_annual'].sum():,.0f}")
-            with xc: st.metric("Monthly PKR",f"PKR {au['total_annual'].sum()/12:,.0f}")
-            st.divider()
+            kpi_row([
+                ("Subscriptions",str(len(au))),
+                ("Annual PKR",f"PKR {au['total_annual'].sum():,.0f}"),
+                ("Monthly PKR",f"PKR {au['total_annual'].sum()/12:,.0f}"),
+            ])
+            spacer(10)
             dc2=['merchant_name','category','avg_amount','count','total_annual']
             dn2=['Subscription','Category','Monthly (PKR)','Count','Annual (PKR)']
             ad=au[dc2].copy(); ad.columns=dn2; st.dataframe(ad,use_container_width=True,hide_index=True)
@@ -1198,8 +1552,9 @@ elif page=="Reports & Export":
             if len(un)>0: status('warning',f'<strong>{len(un)}</strong> underused subscription(s) — consider cancelling.')
             else: status('success','All subscriptions actively used.')
             if ef=="Excel (XLSX)":
-                buf=pd.ExcelWriter('sa.xlsx',engine='openpyxl'); ad.to_excel(buf,sheet_name='Subscriptions',index=False); buf.close()
-                with open('sa.xlsx','rb') as f: st.download_button("Download Excel",f.read(),f"subscriptions_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                _buf=io.BytesIO()
+                with pd.ExcelWriter(_buf,engine='openpyxl') as _w: ad.to_excel(_w,sheet_name='Subscriptions',index=False)
+                st.download_button("Download Excel",_buf.getvalue(),f"subscriptions_{datetime.now().strftime('%Y%m%d')}.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else: st.download_button("Download CSV",ad.to_csv(index=False),f"subscriptions_{datetime.now().strftime('%Y%m%d')}.csv","text/csv")
-        else: status('info','No subscriptions detected.')
-    card_close()
+        else:
+            empty_state("No subscriptions detected","Upload recurring transaction history to see a subscription audit.")

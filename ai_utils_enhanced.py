@@ -14,6 +14,13 @@ import json
 import re
 from collections import Counter
 
+try:
+    import streamlit as st
+    _cache_data = st.cache_data(show_spinner=False)
+except ImportError:
+    # keep this module importable/testable outside a Streamlit context
+    def _cache_data(fn): return fn
+
 from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
@@ -107,6 +114,7 @@ Be concise, insightful, and actionable. Use PKR for amounts. Use bullet points f
 Rules:
 - Answer only finance-related questions using the data above
 - Keep responses under 200 words unless a breakdown is needed
+- Do not use emoji or decorative symbols anywhere in the response
 """
         messages = []
         for turn in conversation_history[-10:]:
@@ -118,7 +126,8 @@ Rules:
         )
         return response.content[0].text
     except Exception as e:
-        return f"⚠️ Claude API error: {e}\n\n" + _rule_based_chat(user_message, df)
+        print(f"[Claude API error] {e}")
+        return _rule_based_chat(user_message, df)
 
 
 def _chat_with_huggingface(user_message: str, history: List[Dict], df) -> str:
@@ -155,7 +164,8 @@ def _chat_with_huggingface(user_message: str, history: List[Dict], df) -> str:
 
         return _rule_based_chat(user_message, df)
     except Exception as e:
-        return f"⚠️ HuggingFace error: {e}\n\n" + _rule_based_chat(user_message, df)
+        print(f"[HuggingFace API error] {e}")
+        return _rule_based_chat(user_message, df)
 
 
 def _chat_with_gemini(user_message: str, history: List[Dict], df) -> str:
@@ -185,8 +195,8 @@ def _rule_based_chat(user_message: str, df) -> str:
 
     if any(w in msg for w in ['spend', 'spent', 'expense', 'cost']):
         top = expenses.groupby('category')['amount'].sum().sort_values(ascending=False).head(3)
-        lines = [f"• {c}: ${a:,.2f}" for c, a in top.items()]
-        return f"💰 Your total spending is **${total_exp:,.2f}**.\n\nTop categories:\n" + "\n".join(lines)
+        lines = [f"- {c}: ${a:,.2f}" for c, a in top.items()]
+        return f"Your total spending is **${total_exp:,.2f}**.\n\nTop categories:\n" + "\n".join(lines)
 
     if any(w in msg for w in ['subscription', 'recurring', 'membership']):
         from ai_utils_enhanced import detect_recurring_payments_enhanced
@@ -194,29 +204,29 @@ def _rule_based_chat(user_message: str, df) -> str:
         if len(rec) > 0:
             monthly = rec['avg_amount'].sum()
             names = ", ".join(rec['merchant_name'].head(5).tolist())
-            return f"🔄 Detected **{len(rec)} subscriptions** costing ~${monthly:,.2f}/month.\n\nTop: {names}"
+            return f"Detected **{len(rec)} subscriptions** costing ~${monthly:,.2f}/month.\n\nTop: {names}"
         return "No clear recurring subscriptions detected in your data."
 
     if any(w in msg for w in ['income', 'earn', 'salary', 'revenue']):
-        return f"💵 Your total income is **${total_inc:,.2f}** with a net balance of **${total_inc - total_exp:,.2f}**."
+        return f"Your total income is **${total_inc:,.2f}** with a net balance of **${total_inc - total_exp:,.2f}**."
 
     if any(w in msg for w in ['save', 'saving', 'budget']):
         rate = ((total_inc - total_exp) / total_inc * 100) if total_inc > 0 else 0
-        return (f"🏦 Savings rate: **{rate:.1f}%**. "
-                + ("You're on track! Aim for 20%+ for long-term wealth." if rate >= 15
+        return (f"Savings rate: **{rate:.1f}%**. "
+                + ("You're on track — aim for 20%+ for long-term wealth." if rate >= 15
                    else "Consider reducing discretionary spending to improve your savings rate."))
 
     if any(w in msg for w in ['suspicious', 'fraud', 'unusual', 'anomaly']):
-        return "🔍 Use the **Fraud Detection** page for detailed anomaly analysis powered by Isolation Forest."
+        return "Use the **Fraud Detection** page for detailed anomaly analysis powered by Isolation Forest."
 
     if any(w in msg for w in ['predict', 'forecast', 'next month']):
         fc = predict_monthly_spending(df, months_ahead=2)
         if 'error' not in fc:
-            items = [f"• {k}: ${v:,.0f}" for k, v in list(fc.get('forecasts', {}).items())[:2]]
-            return "📈 Spending forecast:\n" + "\n".join(items)
+            items = [f"- {k}: ${v:,.0f}" for k, v in list(fc.get('forecasts', {}).items())[:2]]
+            return "Spending forecast:\n" + "\n".join(items)
         return "Not enough data for forecasting (need 3+ months)."
 
-    return (f"I'm your financial assistant! I can see **{len(df)} transactions** totalling "
+    return (f"I'm your financial assistant. I can see **{len(df)} transactions** totalling "
             f"**${total_exp:,.2f}** in expenses. Try asking: 'How much did I spend?', "
             "'What are my subscriptions?', or 'How can I save more?'")
 
@@ -631,6 +641,7 @@ def generate_realistic_dataset(months: int = 3, monthly_income: float = 80000) -
 #  ENHANCED RECURRING PAYMENT DETECTION
 # ─────────────────────────────────────────────
 
+@_cache_data
 def detect_recurring_payments_enhanced(df: pd.DataFrame) -> pd.DataFrame:
     """
     Improved subscription detector with fuzzy merchant matching
@@ -703,6 +714,7 @@ def detect_recurring_payments_enhanced(df: pd.DataFrame) -> pd.DataFrame:
 #  FINANCIAL HEALTH SCORE
 # ─────────────────────────────────────────────
 
+@_cache_data
 def compute_financial_health_score(
     df: pd.DataFrame,
     income: float,
@@ -783,6 +795,7 @@ def compute_financial_health_score(
 #  SMART ALERTS ENGINE
 # ─────────────────────────────────────────────
 
+@_cache_data
 def generate_smart_alerts(
     df: pd.DataFrame,
     recurring_df: pd.DataFrame,
@@ -796,7 +809,7 @@ def generate_smart_alerts(
     if fraud_count > 0:
         alerts.append({
             'type': 'danger',
-            'icon': '🚨',
+            'icon': 'alert-octagon',
             'title': 'Suspicious Transactions Detected',
             'message': f'{fraud_count} transaction(s) flagged as potentially fraudulent.',
             'action': 'Review Fraud Detection page',
@@ -813,7 +826,7 @@ def generate_smart_alerts(
             if change_pct > 20:
                 alerts.append({
                     'type': 'warning',
-                    'icon': '📈',
+                    'icon': 'arrow-up-right',
                     'title': 'Spending Spike Detected',
                     'message': f'Spending increased by {change_pct:.0f}% compared to last month.',
                     'action': 'Review Analytics page',
@@ -821,10 +834,10 @@ def generate_smart_alerts(
             elif change_pct < -20:
                 alerts.append({
                     'type': 'success',
-                    'icon': '📉',
-                    'title': 'Great — Spending Down!',
+                    'icon': 'arrow-down-right',
+                    'title': 'Spending Down',
                     'message': f'Spending decreased by {abs(change_pct):.0f}% vs last month.',
-                    'action': 'Keep it up!',
+                    'action': 'Keep it up',
                 })
 
     # Alert 3: Underused subscriptions
@@ -835,7 +848,7 @@ def generate_smart_alerts(
             names = ", ".join(underused['merchant_name'].head(3).tolist())
             alerts.append({
                 'type': 'warning',
-                'icon': '💸',
+                'icon': 'repeat',
                 'title': 'Underused Subscriptions',
                 'message': f'{len(underused)} subscription(s) appear underused: {names}',
                 'action': 'Review Recurring Payments page',
@@ -849,7 +862,7 @@ def generate_smart_alerts(
         if sr < 5:
             alerts.append({
                 'type': 'danger',
-                'icon': '⚠️',
+                'icon': 'alert-triangle',
                 'title': 'Very Low Savings Rate',
                 'message': f'Savings rate is only {sr:.1f}%. Aim for 20%+.',
                 'action': 'Review Budget Planning page',
@@ -858,9 +871,9 @@ def generate_smart_alerts(
     if not alerts:
         alerts.append({
             'type': 'success',
-            'icon': '✅',
+            'icon': 'check-circle',
             'title': 'All Clear',
-            'message': 'No financial alerts at this time. Good job!',
+            'message': 'No financial alerts at this time.',
             'action': '',
         })
 
@@ -871,6 +884,7 @@ def generate_smart_alerts(
 #  PRESERVED ORIGINAL ai_utils.py FUNCTIONS
 # ─────────────────────────────────────────────
 
+@_cache_data
 def forecast_spending_arima_style(df: pd.DataFrame, periods: int = 3) -> Dict[str, Any]:
     expenses = df[df['transaction_type'] == 'expense'].copy()
     monthly  = expenses.groupby(expenses['date'].dt.to_period('M'))['amount'].sum()

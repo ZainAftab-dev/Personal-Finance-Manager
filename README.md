@@ -1,280 +1,121 @@
-# Personal Finance Manager - Enhanced Edition
+<div align="center">
 
-A comprehensive personal finance management application built with Streamlit that provides insights into spending patterns, budgeting, fraud detection, and financial health scoring.
+# FinanceIQ — AI Financial Intelligence Platform
 
-## 🚀 What's New (Version 2.0)
+A personal finance dashboard that turns raw bank transactions into a real financial picture — spending trends, fraud detection, subscription tracking, budget planning, and a conversational AI assistant, all in one Streamlit app.
 
-### ✅ **8 Major Issues Fixed**
-1. **Income tracking** - Now shows actual salary deposits
-2. **Sample data** - Expanded from 59 to 150+ realistic transactions
-3. **Monthly spending graph** - Fixed flat line issue
-4. **Analytics errors** - Resolved all Plotly AttributeErrors
-5. **Budget planning** - Completely redesigned with industry standards
-6. **Monthly reports** - Now shows 15+ entries instead of 1
-7. **Recurring payments** - Properly detects all subscriptions
-8. **Financial health** - Comprehensive multi-factor scoring
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Pandas](https://img.shields.io/badge/Pandas-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
+[![Plotly](https://img.shields.io/badge/Plotly-3F4F75?logo=plotly&logoColor=white)](https://plotly.com/)
+[![Anthropic Claude](https://img.shields.io/badge/Claude_API-D97757?logo=anthropic&logoColor=white)](https://www.anthropic.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-### 📊 **New Features**
-- **User-Friendly Budget Planning** - Industry-standard allocation percentages with status indicators
-- **Enhanced Analytics** - Multiple chart types and detailed breakdowns
-- **Comprehensive Monthly Reports** - With month selector and visualizations
-- **Improved Fraud Detection** - Better alerts and security tips
-- **Better Financial Health Score** - Weighted calculation focusing on savings rate
-- **Professional Sample Data** - All transaction fields included
-
-## 📋 Features
-
-### Dashboard
-- **Financial Overview** - Total spending, income, balance, fraud alerts
-- **Monthly Spending Trend** - Visual line chart showing spending patterns
-- **Category Breakdown** - Pie chart of spending by category
-- **Recent Transactions** - Last 20 transactions table
-
-### Analytics
-- **Daily Spending Pattern** - Bar chart of daily spending
-- **Top Merchants** - Horizontal bar chart of biggest merchants
-- **Category Breakdown** - Detailed table with totals, counts, averages
-
-### Budget Planning (REDESIGNED)
-- **Current Spending Overview** - Key metrics at a glance
-- **Industry-Standard Budget** - Recommended allocation percentages
-- **Actual Spending** - Your real spending distribution
-- **Budget vs Actual Comparison** - Status indicators for each category
-- **Actionable Recommendations** - Tips to improve budgeting
-
-### Fraud Detection
-- **Suspicious Transaction Count** - How many flagged transactions
-- **Fraud Rate** - Percentage of suspicious activity
-- **Detailed Listing** - All flagged transactions reviewed
-- **Security Tips** - Best practices for account protection
-
-### Recurring Payments
-- **Subscription Detection** - Automatically finds recurring charges
-- **Annual Cost Calculation** - Yearly spending on subscriptions
-- **Subscription Audit** - Tips to cancel unused services
-- **Savings Calculator** - Shows potential savings
-
-### Monthly Report
-- **Month Selector** - View any past month's data
-- **Financial Summary** - Income, spending, balance, transaction count
-- **Category Breakdown** - Detailed spending by category
-- **Top 15 Expenses** - Most significant transactions
-- **Visualizations** - Daily spending and category pie charts
-- **CSV Export** - Download report for records
-
-### Financial Health
-- **Health Score (0-100)** - Comprehensive financial assessment
-- **Gauge Visualization** - Visual score indicator
-- **Key Metrics** - Income, expenses, savings rate
-- **Personalized Recommendations** - Based on your data
-- **Color-Coded Advice** - Easy-to-read status indicators
-
-## 🎯 Recommended Features (Not Yet Implemented)
-
-See [RECOMMENDED_FEATURES.md](RECOMMENDED_FEATURES.md) for detailed implementation guides:
-
-### High Priority
-- 🔴 Bill Reminders & Calendar
-- 🔴 Spending Alerts & Notifications
-- 🔴 Expense Forecasting
-
-### Medium Priority
-- 🟠 Savings Goals Tracking
-- 🟠 Spending Trends Analysis
-- 🟠 Subscription Audit Report
-
-### Advanced
-- 🟡 Investment Tracking
-- 🟡 Tax Reports & Deductions
-
-## 💾 Sample Data
-
-The app includes comprehensive 150+ transaction sample with:
-- **12 months** of data (March 2025 - March 2026)
-- **Monthly income** deposits
-- **Daily expenses** across all categories
-- **Recurring bills** (rent, utilities, subscriptions)
-- **Realistic fraud** anomalies
-- **All fields**: date, merchant, category, amount, payment method, card type
-
-### Data Fields
-```
-date               - Transaction date (YYYY-MM-DD)
-merchant_name      - Where you spent money
-category           - Expense category (Income, Groceries, etc.)
-amount             - Transaction amount (positive values)
-description        - Transaction details
-transaction_type   - 'income' or 'expense'
-payment_method     - Credit Card, Debit Card, Bank Transfer, etc.
-card_type          - Visa, Mastercard, American Express, etc.
-```
-
-## 📤 Upload Your Own Data
-
-The app accepts CSV or Excel files with these columns:
-
-### Required
-- `date` - Transaction date
-- `amount` - Transaction amount
-- `merchant_name` or `description` - Merchant/description
-
-### Optional (Auto-detected)
-- `category` - Expense category
-- `payment_method` - How you paid
-- `card_type` - Credit card type
-
-### Example CSV
-```csv
-date,merchant_name,category,amount
-2025-03-01,Whole Foods,Groceries,89.23
-2025-03-02,Starbucks,Food & Dining,5.45
-2025-03-03,Employer Salary,Income,4200.00
-```
-
-## 🔧 Installation
-
-### Requirements
-```
-Python 3.8+
-streamlit
-pandas
-numpy
-plotly
-scikit-learn
-```
-
-### Setup
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Generate sample data (optional)
-python create_excel.py
-
-# Run the app
-streamlit run app.py
-```
-
-## 📊 Transaction Categories
-
-The app supports these categories:
-- **Income** - Salary, bonuses, freelance
-- **Groceries** - Food shopping
-- **Food & Dining** - Restaurants, cafes
-- **Utilities** - Electric, water, gas, internet
-- **Rent** - Housing payments
-- **Transportation** - Gas, Uber, parking
-- **Entertainment** - Movies, games, concerts
-- **Shopping** - Clothing, electronics, etc.
-- **Healthcare** - Pharmacy, doctor visits
-- **Subscriptions** - Netflix, Spotify, gym, etc.
-
-## 🎨 Color Scheme
-
-- **Primary**: #667eea (Blue)
-- **Secondary**: #764ba2 (Purple)
-- **Success**: #28a745 (Green)
-- **Warning**: #ffc107 (Yellow)
-- **Danger**: #dc3545 (Red)
-
-## 📈 Financial Health Scoring
-
-Your health score (0-100) is calculated from:
-
-| Factor | Weight | Description |
-|--------|--------|-------------|
-| Income vs Expense Balance | 30% | Savings rate (most important) |
-| Fraud Rate | 25% | Suspicious transactions |
-| Spending Consistency | 20% | Month-to-month stability |
-| Subscription Burden | 15% | % spent on subscriptions |
-| Category Diversity | 10% | Variety in spending |
-
-**Score Interpretation**:
-- 80+: ✅ Excellent financial health
-- 60-79: ⚠️ Good, but room for improvement
-- 40-59: ❌ Fair, action needed
-- <40: ❌❌ Poor, urgent action required
-
-## 💡 Tips for Best Results
-
-1. **Use Sample Data First** - Explore with realistic example
-2. **Upload Real Transactions** - Get your actual financial picture
-3. **Review Monthly** - Check health score and recommendations
-4. **Track Budget** - Use Budget Planning to allocate spending
-5. **Monitor Subscriptions** - Cancel unused services
-6. **Check Fraud** - Review suspicious transactions regularly
-7. **Set Goals** - Plan for savings targets
-
-## 🔒 Data Privacy
-
-- All data is processed locally
-- No data is sent to external servers
-- No account login required
-- Data stored only in your browser (session)
-- Upload files are not stored
-
-## 📚 Documentation
-
-- [UPGRADE_SUMMARY.md](UPGRADE_SUMMARY.md) - Complete list of fixes and improvements
-- [FEATURES_AND_IMPROVEMENTS.md](FEATURES_AND_IMPROVEMENTS.md) - Detailed feature documentation
-- [RECOMMENDED_FEATURES.md](RECOMMENDED_FEATURES.md) - Ideas for future development
-
-## 🚀 Quick Start
-
-### Option 1: Use Sample Data (Recommended for First Time)
-1. Run the app: `streamlit run app.py`
-2. Select "Use Sample Data" in sidebar
-3. Explore all features with realistic 150+ transaction sample
-
-### Option 2: Upload Your Data
-1. Prepare CSV with: date, amount, merchant_name
-2. Run the app: `streamlit run app.py`
-3. Select "Upload Your Data"
-4. Upload your CSV/Excel file
-5. Explore your financial data
-
-## 📞 Support
-
-For issues or questions:
-1. Check [FEATURES_AND_IMPROVEMENTS.md](FEATURES_AND_IMPROVEMENTS.md)
-2. Review [RECOMMENDED_FEATURES.md](RECOMMENDED_FEATURES.md)
-3. Check sample data format
-4. Verify all required columns present
-
-## 📄 License
-
-MIT License - Feel free to use and modify
-
-## 🎯 Future Roadmap
-
-- [ ] Bill reminders and calendar
-- [ ] Spending alerts and notifications
-- [ ] Expense forecasting with ML
-- [ ] Savings goals tracking
-- [ ] Bank API integration (Plaid)
-- [ ] Investment tracking
-- [ ] Tax report generation
-- [ ] Peer benchmarking
-
-## 📊 Performance
-
-- **Startup Time**: < 5 seconds
-- **Chart Load Time**: < 1 second
-- **Data Processing**: < 2 seconds
-- **Memory Usage**: < 200MB
-
-## 🙏 Acknowledgments
-
-Built with:
-- [Streamlit](https://streamlit.io/) - App framework
-- [Plotly](https://plotly.com/) - Visualizations
-- [Pandas](https://pandas.pydata.org/) - Data processing
-- [Scikit-learn](https://scikit-learn.org/) - Machine learning
+</div>
 
 ---
 
-**Version**: 2.0 Enhanced
-**Last Updated**: March 2025
-**Status**: Production Ready ✅
+## Overview
 
-**Transform your finances in minutes!** 💰📊
+FinanceIQ ingests bank statements (CSV, Excel, or PDF — including NayaPay exports) or synthetic demo data and turns them into a full financial intelligence dashboard: an isolation-forest fraud detector, automatic subscription/recurring-payment detection, a composite 0–100 financial health score, spending forecasts, and an AI chat assistant that answers questions about your own transaction data in plain English.
+
+It started as a coursework project (`app.py` / `ai_utils.py`) and was extended into a fuller product (`app_enhanced.py` / `ai_utils_enhanced.py`) — the original files are kept untouched alongside the enhanced version so both are runnable.
+
+## Features
+
+**Core Analytics**
+- Dashboard with a north-star net-balance metric, cash-flow sparkline, and category breakdown
+- Detailed analytics — category, merchant, day-of-week, and income-vs-expense trend views
+- Monthly reports with a month picker, category charts, and full transaction listings
+
+**Machine Learning**
+- Fraud detection via `IsolationForest`, with an anomaly scatter plot and severity scoring
+- Automatic recurring-payment / subscription detection with billing-cycle inference
+- Linear-trend spending forecasts and a 5-dimension financial health score (savings ratio, consistency, subscription load, risk profile, income stability)
+- Statistical anomaly detection (Z-score) as a secondary fraud signal
+
+**AI Assistant**
+- Conversational chat over your own transaction data, with a provider fallback chain: Claude API → free HuggingFace Inference API → rule-based offline mode (never a dead end, even with no API key)
+- Claude Vision (or local Tesseract) OCR for receipt/screenshot uploads, auto-extracting merchant, amount, and date
+- PDF bank statement parsing, including a NayaPay-specific parser
+
+**Planning & Tools**
+- Budget planning against industry-standard allocation percentages
+- Bill reminders derived from detected recurring charges
+- Smart alerts engine (spending spikes, fraud, underused subscriptions, low savings rate)
+- Excel/CSV export for monthly summaries, annual summaries, category analysis, and subscription audits
+- A synthetic data generator for demoing the app without real financial data
+
+## Tech Stack
+
+| Layer | Tools |
+|---|---|
+| App framework | Streamlit |
+| Data | Pandas, NumPy |
+| ML | scikit-learn (`IsolationForest`, `KMeans`, `LinearRegression`), SciPy |
+| Visualization | Plotly |
+| AI / LLM | Anthropic Claude API, HuggingFace Inference API |
+| Document parsing | pdfplumber, pytesseract, Pillow |
+| Export | openpyxl |
+
+## Getting Started
+
+### Prerequisites
+- Python 3.10+
+- (Optional) [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) if you want local OCR instead of Claude Vision
+
+### Installation
+
+```bash
+git clone https://github.com/ZainAftab-dev/Personal-Finance-Manager.git
+cd Personal-Finance-Manager
+pip install -r requirements_enhanced.txt
+```
+
+### Configure API keys (optional)
+
+The app runs fully offline with rule-based fallbacks if you skip this — AI chat, OCR, and forecasting all degrade gracefully. To enable the AI features, create a `.env` file in the project root:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...        # Claude chat + Claude Vision OCR
+HUGGINGFACE_API_KEY=hf_...          # free fallback for AI chat — https://huggingface.co/settings/tokens
+GEMINI_API_KEY=                     # optional, rarely needed
+```
+
+### Run
+
+```bash
+streamlit run app_enhanced.py
+```
+
+The original, unmodified coursework version is still runnable independently:
+
+```bash
+streamlit run app.py
+```
+
+## Project Structure
+
+```
+├── app_enhanced.py          # Main app — UI, pages, data loading
+├── ai_utils_enhanced.py     # AI chat, OCR, PDF parsing, health score, alerts
+├── app.py                   # Original coursework version (preserved, unmodified)
+├── ai_utils.py               # Original ML utilities (preserved, unmodified)
+├── requirements_enhanced.txt # Full dependency list for app_enhanced.py
+├── requirements.txt          # Minimal dependency list for app.py
+├── sample_transactions.csv   # Bundled sample dataset
+└── .env                       # API keys (not committed)
+```
+
+## Data Privacy
+
+All processing happens locally in your own Streamlit session — transaction data is never sent anywhere except to the AI provider you've explicitly configured a key for (and only for the specific chat message or receipt image you submit).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Team
+
+Built by **Zain**, **Hunain**, and **Shaheer**.

@@ -6,5 +6,26 @@ __v0_jsx-dev-runtime.ts
 # Common ignores
 node_modules/
 .next/
+.env
 .env*.local
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+venv/
+venv_new/
+.streamlit/secrets.toml
+
+# Generated report exports (created at runtime by Reports & Export)
+ms.xlsx
+as.xlsx
+ca.xlsx
+sa.xlsx
+monthly_summary.xlsx
+annual_summary.xlsx
+category_analysis.xlsx
+subscription_audit.xlsx
+
+# Local run logs
+*.log
