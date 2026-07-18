@@ -335,7 +335,9 @@ h1,h2,h3,h4{{font-family:var(--font-sans)!important;letter-spacing:-.01em;}}
 .stTextInput input,.stNumberInput input,.stSelectbox [data-baseweb="select"]>div,.stDateInput input,.stTextArea textarea{{
   font-family:var(--font-mono)!important;background:var(--surface-2)!important;border-color:var(--border-strong)!important;color:var(--text)!important;
 }}
-.stProgress > div > div{{background:var(--accent)!important;}}
+[data-baseweb="progress-bar"] > div{{background:var(--surface-2)!important;}}
+[data-baseweb="progress-bar"] > div > div{{background:transparent!important;}}
+[data-baseweb="progress-bar"] > div > div > div{{background:var(--accent)!important;}}
 [data-testid="stFileUploaderDropzone"]{{background:var(--surface-1)!important;border:1px dashed var(--border-strong)!important;border-radius:var(--radius)!important;}}
 hr{{border-color:var(--border)!important;}}
 </style>""", unsafe_allow_html=True)

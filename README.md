@@ -22,6 +22,23 @@ FinanceIQ ingests bank statements (CSV, Excel, or PDF — including NayaPay expo
 
 It started as a coursework project (`app.py` / `ai_utils.py`) and was extended into a fuller product (`app_enhanced.py` / `ai_utils_enhanced.py`) — the original files are kept untouched alongside the enhanced version so both are runnable.
 
+## Screenshots
+
+| | |
+|---|---|
+| **Dashboard** | **AI Chat Assistant** |
+| ![Dashboard](screenshots/01_dashboard.png) | ![AI Chat Assistant](screenshots/02_ai_chat_assistant.png) |
+| **Analytics** | **Fraud Detection** |
+| ![Analytics](screenshots/03_analytics.png) | ![Fraud Detection](screenshots/04_fraud_detection.png) |
+| **Recurring Payments** | **Financial Health** |
+| ![Recurring Payments](screenshots/05_recurring_payments.png) | ![Financial Health](screenshots/06_financial_health.png) |
+| **Smart Alerts** | **Budget Planning** |
+| ![Smart Alerts](screenshots/07_smart_alerts.png) | ![Budget Planning](screenshots/08_budget_planning.png) |
+| **Monthly Report** | **Bill Reminders** |
+| ![Monthly Report](screenshots/09_monthly_report.png) | ![Bill Reminders](screenshots/10_bill_reminders.png) |
+| **OCR Receipt Upload** | **Reports & Export** |
+| ![OCR Receipt Upload](screenshots/11_ocr_receipt_upload.png) | ![Reports & Export](screenshots/12_reports_export.png) |
+
 ## Features
 
 **Core Analytics**
