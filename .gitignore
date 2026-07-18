@@ -26,6 +26,7 @@ monthly_summary.xlsx
 annual_summary.xlsx
 category_analysis.xlsx
 subscription_audit.xlsx
+personal_finance_3_months.xlsx
 
 # Local run logs
 *.log
