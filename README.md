@@ -122,7 +122,12 @@ streamlit run app.py
 ├── requirements_enhanced.txt # Full dependency list for app_enhanced.py
 ├── requirements.txt          # Minimal dependency list for app.py
 ├── sample_transactions.csv   # Bundled sample dataset
-└── .env                       # API keys (not committed)
+├── test_transactions.csv     # Extra test dataset
+├── create_excel.py           # Builds a sample Excel statement for upload testing
+├── generate_test_excel.py    # Generates test Excel files
+├── screenshots/              # Images used in this README
+├── UPGRADE_README.md         # What changed between the original and enhanced versions
+└── .env                      # API keys (not committed)
 ```
 
 ## Data Privacy
@@ -135,4 +140,12 @@ MIT — see [LICENSE](LICENSE).
 
 ## Team
 
-Built by **Zain**, **Hunain**, and **Shaheer**.
+BS Software Engineering, COMSATS University Islamabad (Lahore Campus).
+
+| Name | Registration No. |
+|---|---|
+| Zain Aftab | FA24-BSE-155 |
+| Hunain Riasat | FA24-BSE-083 |
+| Shaheer Aftab | FA24-BSE-089 |
+
+Maintained by **Zain Aftab** · [GitHub](https://github.com/ZainAftab-dev) · [LinkedIn](https://www.linkedin.com/in/zain-aftab-563727295/)
