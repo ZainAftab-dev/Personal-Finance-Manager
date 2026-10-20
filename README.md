@@ -42,7 +42,7 @@ It started as a coursework project (`app.py` / `ai_utils.py`) and was extended i
 ## Features
 
 **Core Analytics**
-- Dashboard with a north-star net-balance metric, cash-flow sparkline, and category breakdown
+- Overview dashboard: net-balance trend (week / month / year) with the period's peak marked, spending by category against a budget, top subscriptions with renewal dates, and a finance-assistant panel that surfaces the most unusual charge and a computed savings tip
 - Detailed analytics — category, merchant, day-of-week, and income-vs-expense trend views
 - Monthly reports with a month picker, category charts, and full transaction listings
 

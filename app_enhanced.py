@@ -71,11 +71,11 @@ st.set_page_config(page_title="FinanceIQ", layout="wide", initial_sidebar_state=
 # ══════════════════════════════════════════════════════════════════
 #  DESIGN TOKENS (python-side, mirrored into CSS below)
 # ══════════════════════════════════════════════════════════════════
-BG, SURFACE1, SURFACE2 = "#0a0b0e", "#121317", "#1a1c22"
-TEXT, TEXT_DIM, TEXT_FAINT = "#edeef2", "#9498a3", "#55585f"
-ACCENT, ACCENT_DIM = "#3d74f5", "#2a4fa8"
-POSITIVE, NEGATIVE, WARNING = "#34c77b", "#f0575a", "#e8b339"
-CATEGORY_PALETTE = ['#3d74f5','#34c77b','#e8b339','#f0575a','#8b7cf6','#3ec6c6','#f2905a','#6b8fd6','#c76fae','#7cae55']
+BG, SURFACE1, SURFACE2 = "#13112a", "#1c1a3a", "#2c2958"
+TEXT, TEXT_DIM, TEXT_FAINT = "#f1efff", "#9b97c2", "#6f6a9c"
+ACCENT, ACCENT_DIM = "#8b7cf6", "#6d5ee0"
+POSITIVE, NEGATIVE, WARNING = "#34d399", "#fb7185", "#fbbf24"
+CATEGORY_PALETTE = ['#8b7cf6','#22d3ee','#34d399','#fbbf24','#fb7185','#a78bfa','#f2905a','#60a5fa','#f472b6','#a3e635']
 
 # ══════════════════════════════════════════════════════════════════
 #  ICON SET — inline SVG, stroke-based, no emoji anywhere
@@ -171,22 +171,23 @@ def empty_state(title, message, icon_name="inbox"):
                 unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════
-#  CSS — "Ledger II": charcoal + azure, Manrope / JetBrains Mono
+#  CSS — "Ultraviolet": deep indigo + violet / mint, Sora / Inter
 # ══════════════════════════════════════════════════════════════════
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root{{
-  --bg:{BG}; --surface:#0d0e12; --surface-1:{SURFACE1}; --surface-2:{SURFACE2};
+  --bg:{BG}; --surface:#16143a; --surface-1:{SURFACE1}; --surface-2:{SURFACE2};
   --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.16);
   --text:{TEXT}; --text-dim:{TEXT_DIM}; --text-faint:{TEXT_FAINT};
-  --accent:{ACCENT}; --accent-dim:{ACCENT_DIM}; --accent-soft:rgba(61,116,245,.14);
-  --positive:{POSITIVE}; --positive-soft:rgba(52,199,123,.13);
-  --negative:{NEGATIVE}; --negative-soft:rgba(240,87,90,.13);
-  --warning:{WARNING}; --warning-soft:rgba(232,179,57,.13);
-  --radius:10px; --radius-sm:6px;
-  --font-sans:'Manrope',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --accent:{ACCENT}; --accent-dim:{ACCENT_DIM}; --accent-soft:rgba(139,124,246,.18);
+  --positive:{POSITIVE}; --positive-soft:rgba(52,211,153,.12);
+  --negative:{NEGATIVE}; --negative-soft:rgba(251,113,133,.14);
+  --warning:{WARNING}; --warning-soft:rgba(251,191,36,.13);
+  --radius:14px; --radius-sm:9px;
+  --font-sans:'Inter',sans-serif; --font-display:'Sora',sans-serif; --font-mono:'JetBrains Mono',monospace;
 }}
+[data-testid="stDecoration"]{{display:none!important;}}
 #MainMenu,footer,.stDeployButton{{visibility:hidden!important;display:none!important;}}
 header[data-testid="stHeader"]{{background:transparent!important;border-bottom:none!important;box-shadow:none!important;}}
 [data-testid="stSidebarCollapsedControl"]{{display:flex!important;visibility:visible!important;opacity:1!important;background:var(--surface-1)!important;border:1px solid var(--border)!important;border-radius:var(--radius-sm)!important;z-index:9999!important;}}
@@ -203,14 +204,14 @@ html,body,[class*="css"]{{font-family:var(--font-sans)!important;color:var(--tex
 /* ── Typography rhythm ─────────────────────────────────────────── */
 h1,h2,h3,h4{{font-family:var(--font-sans)!important;letter-spacing:-.01em;}}
 .page-eyebrow{{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;}}
-.page-title{{font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;margin-bottom:2px;}}
+.page-title{{font-family:var(--font-display)!important;font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;margin-bottom:2px;}}
 .page-subtitle{{font-size:12.5px;color:var(--text-faint);margin-bottom:22px;}}
 
 /* ── Hero card (north-star metric) ───────────────────────────────── */
-.hero-card{{background:radial-gradient(120% 130% at 100% 0%,rgba(61,116,245,.11),transparent 60%),var(--surface-1);
+.hero-card{{background:radial-gradient(120% 130% at 100% 0%,rgba(139,124,246,.16),transparent 60%),var(--surface-1);
   border:1px solid var(--border);border-radius:var(--radius);padding:24px 26px;position:relative;overflow:hidden;height:100%;}}
 .hero-label{{font-family:var(--font-mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);}}
-.hero-value{{font-family:var(--font-sans);font-size:44px;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-top:10px;line-height:1;}}
+.hero-value{{font-family:var(--font-display);font-size:44px;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-top:10px;line-height:1;}}
 .hero-delta{{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:12px;color:var(--text-dim);margin-top:10px;padding:3px 9px;border-radius:20px;background:var(--surface-2);}}
 .hero-delta.up{{color:var(--positive);background:var(--positive-soft);}} .hero-delta.down{{color:var(--negative);background:var(--negative-soft);}}
 .hero-spark{{margin-top:14px;line-height:0;}}
@@ -230,7 +231,7 @@ h1,h2,h3,h4{{font-family:var(--font-sans)!important;letter-spacing:-.01em;}}
 .kpi-card:hover{{border-color:var(--border-strong);}}
 .kpi-top{{display:flex;justify-content:space-between;align-items:flex-start;}}
 .kpi-label{{font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);}}
-.kpi-value{{font-family:var(--font-mono);font-size:21px;font-weight:600;letter-spacing:-.01em;color:var(--text);font-variant-numeric:tabular-nums;margin-top:8px;}}
+.kpi-value{{font-family:var(--font-display);font-size:21px;font-weight:600;letter-spacing:-.01em;color:var(--text);font-variant-numeric:tabular-nums;margin-top:8px;}}
 .kpi-delta{{display:flex;align-items:center;gap:3px;font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:6px;}}
 .kpi-delta.up{{color:var(--positive);}} .kpi-delta.down{{color:var(--negative);}}
 
@@ -267,7 +268,7 @@ h1,h2,h3,h4{{font-family:var(--font-sans)!important;letter-spacing:-.01em;}}
 .status-success{{border-color:var(--positive);color:#aee3c5;}}
 .status-warning{{border-color:var(--warning);color:#ecd497;}}
 .status-danger{{border-color:var(--negative);color:#f4a7a9;}}
-.status-info{{border-color:var(--accent);color:#a9c1f5;}}
+.status-info{{border-color:var(--accent);color:#c4bbff;}}
 
 /* ── Empty states ─────────────────────────────────────────────────── */
 .empty-state{{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:44px 24px;color:var(--text-faint);text-align:center;}}
@@ -276,7 +277,7 @@ h1,h2,h3,h4{{font-family:var(--font-sans)!important;letter-spacing:-.01em;}}
 
 /* ── Sidebar brand ────────────────────────────────────────────────── */
 .brand{{padding:22px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}}
-.brand-name{{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.01em;}}
+.brand-name{{font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.01em;}}
 .brand-name span{{color:var(--accent);}}
 .brand-tag{{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);margin-top:1px;}}
 
@@ -340,12 +341,74 @@ h1,h2,h3,h4{{font-family:var(--font-sans)!important;letter-spacing:-.01em;}}
 [data-baseweb="progress-bar"] > div > div > div{{background:var(--accent)!important;}}
 [data-testid="stFileUploaderDropzone"]{{background:var(--surface-1)!important;border:1px dashed var(--border-strong)!important;border-radius:var(--radius)!important;}}
 hr{{border-color:var(--border)!important;}}
+/* ── Overview (dashboard) ─────────────────────────────────────── */
+[data-testid="column"]:has(.ov-aside){{background:#16143a;border:1px solid var(--border);border-radius:18px;padding:16px 14px!important;}}
+.ov-top .t{{font-family:var(--font-display);font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--text);line-height:1.3;}}
+.ov-top p{{color:var(--text-dim);font-size:12px;margin:2px 0 0;}}
+[role="radiogroup"][aria-label="Range"]{{display:flex;flex-direction:row;background:var(--surface-1);border-radius:11px;padding:3px;gap:2px;width:max-content;margin-left:auto;}}
+[role="radiogroup"][aria-label="Range"] label{{padding:6px 13px!important;border-radius:8px;margin:0!important;cursor:pointer;}}
+[role="radiogroup"][aria-label="Range"] label > div:first-child{{display:none!important;}}
+[role="radiogroup"][aria-label="Range"] label p{{font-size:12px!important;font-weight:600!important;color:var(--text-dim)!important;}}
+[role="radiogroup"][aria-label="Range"] label:has(input:checked){{background:var(--surface-2);}}
+[role="radiogroup"][aria-label="Range"] label:has(input:checked) p{{color:var(--text)!important;}}
+.ov-bal{{background:linear-gradient(140deg,#2a2463,#1c1a3a 70%);border:1px solid var(--border);border-radius:18px;padding:16px 18px 6px;overflow:hidden;margin-bottom:14px;}}
+.ov-bal small{{color:var(--text-dim);font-weight:600;font-size:12px;}}
+.ov-bal .row{{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}}
+.ov-bal b{{font-family:var(--font-display);font-size:34px;font-weight:600;letter-spacing:-.03em;color:var(--text);}}
+.ov-chip{{font-style:normal;font-weight:700;font-size:12px;padding:2px 9px;border-radius:999px;color:var(--positive);background:var(--positive-soft);}}
+.ov-chip.down{{color:var(--negative);background:var(--negative-soft);}}
+.ov-bal svg{{width:100%;height:150px;display:block;margin-top:6px;}}
+.ov-ax{{display:flex;justify-content:space-between;color:var(--text-faint);font-size:10.5px;padding:0 2px 8px;}}
+.ov-row2{{display:grid;grid-template-columns:1fr 1fr;gap:14px;}}
+.ov-c{{background:var(--surface-1);border:1px solid var(--border);border-radius:16px;padding:14px 16px;}}
+.ov-h{{font-size:13px;font-weight:700;margin:0 0 10px;display:flex;justify-content:space-between;color:var(--text);}}
+.ov-h span{{color:var(--text-dim);font-weight:500;}}
+.ov-cat{{display:grid;grid-template-columns:10px 1fr auto;gap:9px;align-items:center;padding:5px 0;font-size:12.5px;color:var(--text);}}
+.ov-cat i{{width:10px;height:10px;border-radius:3px;}}
+.ov-cat b,.ov-sb b{{font-family:var(--font-display);font-weight:600;font-size:12.5px;}}
+.ov-stack{{display:flex;gap:3px;height:10px;margin-top:12px;border-radius:999px;overflow:hidden;}}
+.ov-stack i{{display:block;}}
+.ov-hint{{margin-top:10px;color:var(--text-dim);font-size:11.5px;}}
+.ov-hint b{{color:var(--text);}}
+.ov-sb{{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border);color:var(--text);font-size:12.5px;}}
+.ov-sb:first-of-type{{border-top:0;}}
+.ov-sb .lo{{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:12px;color:#13112a;flex:none;}}
+.ov-sb > span:nth-child(2){{flex:1;min-width:0;}}
+.ov-sb small{{display:block;color:var(--text-dim);font-size:10.5px;}}
+.ov-tg{{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--negative-soft);color:var(--negative);margin-left:6px;}}
+.ov-tg.info{{background:var(--accent-soft);color:#c4bbff;}}
+.ov-empty{{color:var(--text-dim);font-size:12px;padding:10px 0;}}
+.ov-ah{{display:flex;align-items:center;gap:10px;margin-bottom:12px;}}
+.ov-ah i{{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#8b7cf6,#22d3ee);display:grid;place-items:center;font-style:normal;color:#fff;}}
+.ov-ah b{{font-size:14px;display:block;color:var(--text);}}
+.ov-ah small{{color:var(--positive);font-size:11px;}}
+.ov-ah small.off{{color:var(--warning);}}
+.ov-alert{{background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.35);border-radius:13px;padding:11px 13px;}}
+.ov-alert b{{color:#fecdd3;font-size:12.5px;display:block;margin-bottom:3px;}}
+.ov-alert p{{color:#d5d1f2;font-size:11.5px;line-height:1.5;margin:0;}}
+.ov-alert.ok{{background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.3);}}
+.ov-alert.ok b{{color:#a7f3d0;}}
+.ov-msgs{{display:flex;flex-direction:column;gap:8px;margin:12px 0 10px;}}
+.ov-msg{{max-width:92%;padding:9px 12px;border-radius:14px;font-size:12px;line-height:1.5;color:var(--text);}}
+.ov-msg.me{{align-self:flex-end;background:#3a33a0;border-bottom-right-radius:4px;}}
+.ov-msg.ai{{align-self:flex-start;background:var(--surface-1);border:1px solid var(--border);border-bottom-left-radius:4px;}}
+.ov-msg.ai b{{color:var(--positive);}}
+[data-testid="column"]:has(.ov-aside) .stButton>button{{white-space:nowrap!important;border-radius:999px!important;font-size:11px!important;padding:.3em .7em!important;min-height:0!important;background:transparent!important;border-color:rgba(139,124,246,.45)!important;color:#c4bbff!important;}}
+[data-testid="column"]:has(.ov-aside) .stButton>button p{{font-size:11.5px!important;font-weight:600!important;font-family:var(--font-sans)!important;}}
+[data-testid="column"]:has(.ov-aside) .stButton>button[kind="primary"]{{background:var(--negative)!important;border-color:var(--negative)!important;color:#2a0a10!important;}}
+[data-testid="column"]:has(.ov-aside) [data-testid="stForm"]{{border:1px solid var(--border)!important;border-radius:12px!important;background:var(--surface-1)!important;padding:6px 8px!important;}}
+[data-testid="column"]:has(.ov-aside) [data-testid="stForm"] input,
+[data-testid="column"]:has(.ov-aside) [data-testid="stForm"] [data-baseweb="input"],
+[data-testid="column"]:has(.ov-aside) [data-testid="stForm"] [data-baseweb="base-input"]{{background:transparent!important;border:0!important;font-family:var(--font-sans)!important;font-size:12px!important;}}
+[data-testid="column"]:has(.ov-aside) [data-testid="column"]{{min-width:0!important;}}
+[data-testid="column"]:has(.ov-aside) [data-testid="stForm"] .stFormSubmitButton>button{{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important;border-radius:9px!important;}}
+@media (max-width:900px){{.ov-row2{{grid-template-columns:1fr;}}}}
 </style>""", unsafe_allow_html=True)
 
 PLOTLY_LAYOUT = dict(paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
-    font=dict(family='JetBrains Mono',color='#9498a3',size=11),margin=dict(l=8,r=8,t=8,b=8),
-    xaxis=dict(gridcolor='rgba(255,255,255,0.045)',zerolinecolor='rgba(255,255,255,0.08)'),
-    yaxis=dict(gridcolor='rgba(255,255,255,0.045)',zerolinecolor='rgba(255,255,255,0.08)'))
+    font=dict(family='Inter',color='#9b97c2',size=11),margin=dict(l=8,r=8,t=8,b=8),
+    xaxis=dict(gridcolor='rgba(255,255,255,0.05)',zerolinecolor='rgba(255,255,255,0.08)'),
+    yaxis=dict(gridcolor='rgba(255,255,255,0.05)',zerolinecolor='rgba(255,255,255,0.08)'))
 
 # ══════════════════════════════════════════════════════════════════
 #  LAYOUT HELPERS
@@ -632,7 +695,7 @@ def _auto_cat(desc):
 # ══════════════════════════════════════════════════════════════════
 #  SESSION STATE
 # ══════════════════════════════════════════════════════════════════
-for k,v in [('chat_history',[]),('pending_prompt',None),('generated_df',None),('data_label','sample'),('ocr_transactions',[])]:
+for k,v in [('chat_history',[]),('pending_prompt',None),('generated_df',None),('data_label','sample'),('ocr_transactions',[]),('dismissed_fraud',[])]:
     if k not in st.session_state: st.session_state[k]=v
 
 # ══════════════════════════════════════════════════════════════════
@@ -741,79 +804,258 @@ st.sidebar.markdown(f"""<div class="sb-stats">
   <div class="sb-credit">Built by <b>Zain</b>, <b>Hunain</b> &amp; <b>Shaheer</b></div>
 </div>""",unsafe_allow_html=True)
 
+
+# ══════════════════════════════════════════════════════════════════
+#  OVERVIEW (dashboard hero) — balance trend, spending, subscriptions
+#  and the finance-assistant panel, all computed from the loaded data
+# ══════════════════════════════════════════════════════════════════
+RANGE_DAYS = {"Week": 7, "Month": 30, "Year": 365}
+CYCLE_DAYS = {"Weekly": 7, "Bi-weekly": 14, "Monthly": 30, "Quarterly": 91, "Annual": 365}
+
+def goto_page(page_name, prompt=None):
+    """Button callback: switch page (and optionally queue a chat prompt).
+    Runs before the rerun, so it can safely change the nav radio's state."""
+    st.session_state.navigation = page_name
+    if prompt:
+        st.session_state.pending_prompt = prompt
+
+def dismiss_fraud(txn_id):
+    st.session_state.dismissed_fraud = list(st.session_state.get('dismissed_fraud', [])) + [txn_id]
+
+def ask_from_overview():
+    q = str(st.session_state.get('ov_question', '')).strip()
+    if q:
+        goto_page("AI Chat Assistant", q)
+
+def _smooth_path(pts):
+    """Catmull-Rom spline through the points, as an SVG cubic path."""
+    if len(pts) < 2:
+        return ""
+    d = f"M{pts[0][0]:.1f} {pts[0][1]:.1f}"
+    for i in range(len(pts) - 1):
+        p0 = pts[i - 1] if i > 0 else pts[i]
+        p1, p2 = pts[i], pts[i + 1]
+        p3 = pts[i + 2] if i + 2 < len(pts) else p2
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        d += f" C{c1[0]:.1f} {c1[1]:.1f} {c2[0]:.1f} {c2[1]:.1f} {p2[0]:.1f} {p2[1]:.1f}"
+    return d
+
+def balance_chart_svg(series, rng):
+    """Gradient area chart of the running balance with the period's peak marked."""
+    W, H, top, bottom = 560, 150, 30, 8
+    vals = [float(v) for v in series.values]
+    vmin, vmax = min(vals), max(vals)
+    span = (vmax - vmin) or 1
+    n = len(vals)
+    pts = [(i / (n - 1) * W, top + (H - top - bottom) * (1 - (v - vmin) / span)) for i, v in enumerate(vals)]
+    line = _smooth_path(pts)
+    area = f"{line} L{W} {H} L0 {H}Z"
+    k = int(np.argmax(vals)); px, py = pts[k]
+    label = f"{'−' if vals[k] < 0 else ''}PKR {abs(vals[k]):,.0f} · {series.index[k]:%d %b}"
+    lw = 9 + len(label) * 6.1
+    lx = min(max(px - lw / 2, 2), W - lw - 2)
+    return (f'<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" role="img" aria-label="Balance over the last {rng.lower()}">'
+            '<defs><linearGradient id="ovg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b7cf6" stop-opacity=".55"/>'
+            '<stop offset="1" stop-color="#8b7cf6" stop-opacity="0"/></linearGradient></defs>'
+            f'<path d="{area}" fill="url(#ovg)"/>'
+            f'<path d="{line}" fill="none" stroke="#a99cff" stroke-width="2.4" vector-effect="non-scaling-stroke"/>'
+            f'<line x1="{px:.1f}" y1="{top - 2}" x2="{px:.1f}" y2="{H}" stroke="rgba(255,255,255,.18)" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>'
+            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5" fill="#13112a" stroke="#c4bbff" stroke-width="2.5" vector-effect="non-scaling-stroke"/>'
+            f'<rect x="{lx:.1f}" y="2" width="{lw:.1f}" height="22" rx="7" fill="#2c2958"/>'
+            f'<text x="{lx + lw / 2:.1f}" y="17" fill="#f1efff" font-family="Sora,sans-serif" font-size="11" text-anchor="middle">{label}</text></svg>')
+
+def axis_labels(index, rng):
+    picks = np.linspace(0, len(index) - 1, 6).round().astype(int)
+    fmt = {"Week": "%a", "Month": "%d %b", "Year": "%b"}[rng]
+    return "".join(f"<span>{index[i]:{fmt}}</span>" for i in picks)
+
+def monthly_cost(row):
+    cycle = row.get('billing_cycle', 'Monthly') if hasattr(row, 'get') else 'Monthly'
+    return float(row['avg_amount']) * 30 / CYCLE_DAYS.get(cycle, 30)
+
+def render_overview(df, df_fraud, recurring_df):
+    end = df['date'].max().normalize()
+    head_l, head_r = st.columns([3, 1.4])
+    with head_l:
+        st.markdown(f'<div class="ov-top"><div class="t">Overview</div><p>All accounts · {len(df):,} transactions · '
+                    f'updated {end:%d %b %Y}</p></div>', unsafe_allow_html=True)
+    with head_r:
+        rng = st.radio("Range", list(RANGE_DAYS), index=1, horizontal=True,
+                       label_visibility="collapsed", key="ov_range")
+    days = RANGE_DAYS[rng]
+    start = end - pd.Timedelta(days=days - 1)
+    period_word = {"Week": "this week", "Month": "this month", "Year": "this year"}[rng]
+
+    # Running balance over the whole history, so the period's figures are true balances.
+    signed = np.where(df['transaction_type'] == 'income', df['amount'], -df['amount'])
+    daily = pd.Series(signed, index=df['date'].dt.normalize()).groupby(level=0).sum()
+    full_idx = pd.date_range(min(daily.index.min(), start - pd.Timedelta(days=1)), end, freq='D')
+    running = daily.reindex(full_idx, fill_value=0).cumsum()
+    window = running.loc[start:end]
+    if rng == "Year":
+        window = window.resample('W').last()
+    balance = float(running.iloc[-1])
+    opening = float(running.loc[:start - pd.Timedelta(days=1)].iloc[-1]) if (running.index < start).any() else 0.0
+    change = balance - opening
+    # A percentage is only meaningful against a balance at least as large as the move.
+    if abs(opening) >= max(abs(change), 1):
+        delta_txt = f"{'▲' if change >= 0 else '▼'} {abs(change / abs(opening) * 100):.1f}% {period_word}"
+    else:
+        delta_txt = f"{'▲' if change >= 0 else '▼'} PKR {abs(change):,.0f} {period_word}"
+    chip = "ov-chip" + ("" if change >= 0 else " down")
+    chart = balance_chart_svg(window, rng) if len(window) >= 2 else ""
+    axis = axis_labels(window.index, rng) if len(window) >= 2 else ""
+    st.markdown(f'<div class="ov-bal"><small>Net balance</small><div class="row"><b>{"−" if balance < 0 else ""}PKR {abs(balance):,.0f}</b>'
+                f'<em class="{chip}">{delta_txt}</em></div>{chart}<div class="ov-ax">{axis}</div></div>',
+                unsafe_allow_html=True)
+
+    # Spending by category vs. a budget of 92% of average income (the
+    # Budget Planning page's recommended split, minus its 8% savings line).
+    ex = df[(df['transaction_type'] == 'expense') & (df['date'] >= start)]
+    spent = float(ex['amount'].sum())
+    months_span = max(1.0, (df['date'].max() - df['date'].min()).days / 30.4)
+    income_total = float(df[df['transaction_type'] == 'income']['amount'].sum())
+    budget = income_total / months_span * 0.92 * days / 30.4
+    by_cat = ex.groupby('category')['amount'].sum().sort_values(ascending=False)
+    top = by_cat.head(4)
+    # Category colours stay consistent app-wide, but two hashed colours can collide;
+    # inside one small legend each category must be distinguishable.
+    colors, used_c = {}, set()
+    for c in top.index:
+        col = cat_color(c)
+        if col in used_c:
+            col = next((x for x in CATEGORY_PALETTE if x not in used_c), col)
+        colors[c] = col; used_c.add(col)
+    cat_rows = "".join(f'<div class="ov-cat"><i style="background:{colors[c]}"></i>{esc(c)}<b>PKR {v:,.0f}</b></div>'
+                       for c, v in top.items()) or '<div class="ov-empty">No spending in this period.</div>'
+    scale = max(budget, spent, 1)
+    segs = "".join(f'<i style="flex:{v / scale:.4f};background:{colors[c]}"></i>' for c, v in top.items())
+    other = spent - float(top.sum())
+    if other > 0:
+        segs += f'<i style="flex:{other / scale:.4f};background:#6f6a9c"></i>'
+    if budget > spent:
+        segs += f'<i style="flex:{(budget - spent) / scale:.4f};background:#3a3670"></i>'
+    if budget > 0:
+        used = spent / budget * 100
+        left = budget - spent
+        hint = (f'Budget used: <b>{used:.0f}%</b> · PKR {left:,.0f} left {period_word}' if left >= 0
+                else f'Budget used: <b>{used:.0f}%</b> · PKR {-left:,.0f} over {period_word}')
+    else:
+        hint = 'Add income transactions to track a budget.'
+
+    # Subscriptions: the three biggest recurring charges, with the next
+    # renewal and a flag on ones that have stopped charging.
+    subs_html = '<div class="ov-empty">No recurring charges detected yet.</div>'
+    n_subs = 0
+    if recurring_df is not None and len(recurring_df) > 0:
+        rec = recurring_df.copy()
+        rec['monthly'] = rec.apply(monthly_cost, axis=1)
+        rec = rec.sort_values('monthly', ascending=False)
+        n_subs = len(rec)
+        rows = []
+        for _, r in rec.head(3).iterrows():
+            cyc = CYCLE_DAYS.get(r.get('billing_cycle', 'Monthly'), 30)
+            last = pd.to_datetime(r.get('last_charge', end))
+            idle = (end - last).days
+            nxt = last + pd.Timedelta(days=cyc)
+            tag = f'<span class="ov-tg">no charge {idle}d</span>' if idle > cyc * 1.5 else ''
+            name = str(r['merchant_name'])
+            rows.append(f'<div class="ov-sb"><span class="lo" style="background:{cat_color(r["category"])}">{esc(name[:1].upper())}</span>'
+                        f'<span>{esc(name)}{tag}<small>{"Lapsed" if tag else "Renews " + format(nxt, "%d %b")}</small></span>'
+                        f'<b>PKR {r["avg_amount"]:,.0f}</b></div>')
+        subs_html = "".join(rows)
+    st.markdown(f'<div class="ov-row2"><div class="ov-c"><div class="ov-h">Spending by category <span>PKR {spent:,.0f}</span></div>'
+                f'{cat_rows}<div class="ov-stack">{segs}</div><p class="ov-hint">{hint}</p></div>'
+                f'<div class="ov-c"><div class="ov-h">Subscriptions <span>{n_subs} active</span></div>{subs_html}</div></div>',
+                unsafe_allow_html=True)
+    return rng, start, end, by_cat, recurring_df
+
+def render_assistant(df_fraud, recurring_df, by_cat, period_word):
+    online = CHATBOT_ENABLED
+    st.markdown('<div class="ov-aside"></div><div class="ov-ah"><i>✦</i><span><b>Finance assistant</b>'
+                f'<small class="{"" if online else "off"}">● {"online" if online else "offline mode"}</small></span></div>',
+                unsafe_allow_html=True)
+
+    dismissed = set(st.session_state.get('dismissed_fraud', []))
+    # Only outgoing money can be a fraudulent charge (an unusually large salary is not),
+    # and a known recurring bill such as rent is expected, however large.
+    known = set(recurring_df['merchant_name']) if recurring_df is not None and len(recurring_df) else set()
+    flagged = df_fraud[df_fraud['is_fraud'] & (df_fraud['transaction_type'] == 'expense')
+                       & ~df_fraud['merchant_name'].isin(known)
+                       & ~df_fraud['transaction_id'].isin(dismissed)].sort_values('fraud_score')
+    if len(flagged) > 0:
+        f = flagged.iloc[0]
+        spend = df_fraud.loc[df_fraud['transaction_type'] == 'expense', 'amount']
+        larger_than = int((spend < f['amount']).mean() * 100)
+        st.markdown(f'<div class="ov-alert"><b>⚠ Unusual charge flagged</b><p>PKR {f["amount"]:,.0f} at '
+                    f'{esc(f["merchant_name"])} on {f["date"]:%d %b} — larger than {larger_than}% of your charges '
+                    f'and outside your usual pattern.</p></div>',
+                    unsafe_allow_html=True)
+        a1, a2, _ = st.columns([1, 1, .4])
+        with a1:
+            st.button("Review", key="ov_review", type="primary", on_click=goto_page, args=("Fraud Detection",))
+        with a2:
+            st.button("It was me", key="ov_dismiss", on_click=dismiss_fraud, args=(f['transaction_id'],))
+    else:
+        st.markdown('<div class="ov-alert ok"><b>✓ No unusual charges</b><p>Every transaction in this data set looks normal.</p></div>',
+                    unsafe_allow_html=True)
+
+    history = st.session_state.get('chat_history', [])
+    if len(history) >= 2:
+        q = history[-2]['content']; a = history[-1]['content']
+        a = ' '.join(str(a).replace('- ', '').split())
+        a = esc(a if len(a) < 240 else a[:237].rsplit(' ', 1)[0] + '…')
+        a = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', a)
+        q = esc(q)
+    else:
+        q = f"Where can I save money {period_word}?"
+        if recurring_df is not None and len(recurring_df) > 0:
+            rec = recurring_df.copy(); rec['monthly'] = rec.apply(monthly_cost, axis=1)
+            rec = rec.sort_values('monthly', ascending=False)
+            pair = rec.head(2); m2 = float(pair['monthly'].sum())
+            names = " and ".join(esc(n) for n in pair['merchant_name'])
+            a = (f"You're paying <b>{len(rec)} recurring charges</b> — PKR {rec['monthly'].sum():,.0f}/month. "
+                 f"The two largest, {names}, cost <b>PKR {m2:,.0f}/month</b> — that's PKR {m2 * 12:,.0f} a year.")
+        elif len(by_cat) > 0:
+            c, v = by_cat.index[0], float(by_cat.iloc[0])
+            a = (f"Your biggest spend {period_word} is <b>{esc(c)}</b> at PKR {v:,.0f}. "
+                 f"Trimming it by 10% saves <b>PKR {v * .1:,.0f}</b>.")
+        else:
+            a = "Load a statement and I'll show where your money goes."
+    st.markdown(f'<div class="ov-msgs"><div class="ov-msg me">{q}</div><div class="ov-msg ai">{a}</div></div>',
+                unsafe_allow_html=True)
+
+    s1, s2, s3 = st.columns([1.35, 1.2, .75])
+    with s1: st.button("Subscriptions", key="ov_s1", on_click=goto_page, args=("Recurring Payments",), use_container_width=True)
+    with s2: st.button("Show budget", key="ov_s2", on_click=goto_page, args=("Budget Planning",), use_container_width=True)
+    with s3: st.button("Bills", key="ov_s3", on_click=goto_page, args=("Bill Reminders",), use_container_width=True)
+
+    with st.form("ov_ask", clear_on_submit=True):
+        i1, i2 = st.columns([5, 1])
+        with i1:
+            st.text_input("Ask", placeholder="Ask about your money…", label_visibility="collapsed", key="ov_question")
+        with i2:
+            st.form_submit_button("↑", on_click=ask_from_overview, use_container_width=True)
+
 # ══════════════════════════════════════════════════════════════════
 #  PAGES
 # ══════════════════════════════════════════════════════════════════
 
 # ── DASHBOARD ────────────────────────────────────────────────────
 if page=="Dashboard":
-    page_header("Financial Dashboard","Overview of activity and key metrics across your account",eyebrow="Overview")
+    ov_main, ov_aside = st.columns([2.15, 1], gap="medium")
+    with ov_main:
+        ov_rng, ov_start, ov_end, ov_by_cat, _ = render_overview(df, df_fraud, recurring_df)
+    with ov_aside:
+        render_assistant(df_fraud, recurring_df, ov_by_cat,
+                         {"Week": "this week", "Month": "this month", "Year": "this year"}[ov_rng])
+
     ti=df[df['transaction_type']=='income']['amount'].sum()
     ts=df[df['transaction_type']=='expense']['amount'].sum()
-    bal=ti-ts; fa=df_fraud['is_fraud'].sum(); sr=(bal/ti*100) if ti>0 else 0
-
-    daily = df.copy()
-    daily['signed'] = np.where(daily['transaction_type']=='income', daily['amount'], -daily['amount'])
-    running = daily.groupby(daily['date'].dt.date)['signed'].sum().cumsum()
-    spark_vals = list(running.tail(30).values) if len(running) >= 2 else []
-
     health=(compute_financial_health_score(df,ti,ts,recurring_df) if ENHANCED_AI else generate_financial_health_assessment(df,ti,ts))
-    if not ENHANCED_AI:
-        try: hv = int(str(health.get('_health_score','0/100')).split('/')[0])
-        except: hv = 0
-        health.setdefault('total_score', hv)
-        health.setdefault('grade','A' if hv>=85 else 'B' if hv>=70 else 'C' if hv>=55 else 'D' if hv>=40 else 'F')
-    hscore = int(health.get('total_score',0)); hgrade = health.get('grade','?')
 
-    alerts = generate_smart_alerts(df,recurring_df,df_fraud) if ENHANCED_AI else []
-    urgent = [a for a in alerts if a['type'] in ('danger','warning')]
-    alert_html = ""
-    if urgent:
-        a = urgent[0]
-        ic = _STATUS_ICON.get(a['type'],'info')
-        alert_html = f'<div style="display:flex;gap:8px;align-items:flex-start;">{icon(ic,14,"var(--negative)" if a["type"]=="danger" else "var(--warning)")}<div><strong style="color:var(--text)">{a["title"]}</strong><br>{a["message"]}</div></div>'
-    else:
-        alert_html = f'<div style="display:flex;gap:8px;align-items:center;">{icon("check-circle",14,"var(--positive)")}<span>No active alerts — everything looks normal.</span></div>'
-
-    c1,c2=st.columns([1.7,1],gap="medium")
-    with c1:
-        st.markdown(hero_card("Net Balance", f"PKR {bal:,.0f}",
-            f"{sr:.1f}% savings rate", "up" if bal>=0 else "down", spark_vals,
-            "30-day cumulative cash flow"), unsafe_allow_html=True)
-    with c2:
-        st.markdown(side_card(hscore, hgrade, alert_html), unsafe_allow_html=True)
-
-    spacer(16)
-    kpi_row([
-        ("Total Income",f"PKR {ti:,.0f}",f"{len(df[df['transaction_type']=='income'])} txns"),
-        ("Total Expenses",f"PKR {ts:,.0f}",f"{len(df[df['transaction_type']=='expense'])} txns"),
-        ("Savings Rate",f"{sr:.1f}%","Of total income","up" if sr>=15 else None),
-        ("Fraud Alerts",str(int(fa)),f"{fa/len(df)*100:.1f}% flagged","down" if fa>0 else None),
-    ])
-
-    spacer(16)
-    c1,c2=st.columns([7,5],gap="medium")
-    with c1:
-        card_open("Monthly Spending Trend","Expense totals per month")
-        ex=df[df['transaction_type']=='expense'].copy()
-        if len(ex)>0:
-            ex['month']=ex['date'].dt.to_period('M').dt.to_timestamp()
-            mo=ex.groupby('month')['amount'].sum().reset_index().sort_values('month')
-            fig=go.Figure(); fig.add_trace(go.Scatter(x=mo['month'],y=mo['amount'],mode='lines+markers',fill='tozeroy',
-                fillcolor='rgba(61,116,245,0.08)',line=dict(color=ACCENT,width=2),
-                marker=dict(size=6,color=ACCENT),hovertemplate="<b>%{x|%b %Y}</b><br>PKR %{y:,.0f}<extra></extra>"))
-            plotly_fig(fig,height=280,showlegend=False,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.045)'),hovermode='x unified')
-        card_close()
-    with c2:
-        card_open("Spending by Category")
-        cd=df[df['transaction_type']=='expense'].groupby('category')['amount'].sum().sort_values(ascending=False)
-        if len(cd)>0:
-            fig=go.Figure(data=[go.Pie(labels=cd.index,values=cd.values,hole=0.62,
-                marker=dict(colors=[cat_color(c) for c in cd.index],line=dict(color=SURFACE1,width=2)),
-                hovertemplate="<b>%{label}</b><br>PKR %{value:,.0f}<extra></extra>")])
-            plotly_fig(fig,height=280,showlegend=True,legend=dict(orientation='v',x=1.0,y=0.5,font=dict(size=10)))
-        card_close()
-
+    spacer(18)
     card_open("Recent Transactions","Last 20 entries, most recent first")
     recent = df.tail(20).iloc[::-1]
     rows = [[r['date'].strftime('%b %d'), esc(r['merchant_name']), cat_tag(r['category']),
@@ -982,7 +1224,7 @@ elif page=="Analytics":
         fig.add_trace(go.Bar(name='Income',x=am,y=[im2.get(m,0) for m in am],marker_color=POSITIVE))
         fig.add_trace(go.Bar(name='Expenses',x=am,y=[em2.get(m,0) for m in am],marker_color=NEGATIVE))
         fig.update_layout(barmode='group')
-        plotly_fig(fig,height=320,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.045)'),yaxis_title="PKR",hovermode='x unified')
+        plotly_fig(fig,height=320,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.05)'),yaxis_title="PKR",hovermode='x unified')
         card_close()
 
 # ── FRAUD DETECTION ───────────────────────────────────────────────
@@ -1046,7 +1288,7 @@ elif page=="Fraud Detection":
         fig.add_trace(go.Scatter(x=fd2['date'],y=fd2['amount'],mode='markers',name='Flagged',
             marker=dict(color=NEGATIVE,size=10,symbol='x',line=dict(width=2,color=NEGATIVE)),
             text=fd2['merchant_name'],hovertemplate="%{text}<br>PKR %{y:,.0f}<extra></extra>"))
-    plotly_fig(fig,height=300,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.045)'),yaxis_title="PKR",hovermode='closest')
+    plotly_fig(fig,height=300,xaxis=dict(type='date',gridcolor='rgba(255,255,255,0.05)'),yaxis_title="PKR",hovermode='closest')
     card_close()
 
 # ── RECURRING PAYMENTS ────────────────────────────────────────────
@@ -1237,7 +1479,7 @@ elif page=="Monthly Report":
         card_open(f"Daily Spending — {sm}")
         dl=mdf[mdf['transaction_type']=='expense'].groupby(mdf['date'].dt.day)['amount'].sum()
         if len(dl)>0:
-            fig=go.Figure(go.Scatter(x=dl.index,y=dl.values,mode='lines+markers',fill='tozeroy',fillcolor='rgba(61,116,245,.08)',line=dict(color=ACCENT,width=2),marker=dict(size=5),hovertemplate="Day %{x}<br>PKR %{y:,.0f}<extra></extra>"))
+            fig=go.Figure(go.Scatter(x=dl.index,y=dl.values,mode='lines+markers',fill='tozeroy',fillcolor='rgba(139,124,246,.10)',line=dict(color=ACCENT,width=2),marker=dict(size=5),hovertemplate="Day %{x}<br>PKR %{y:,.0f}<extra></extra>"))
             plotly_fig(fig,height=240,showlegend=False,xaxis_title="Day",yaxis_title="PKR")
         card_close()
     card_open("Transactions")
